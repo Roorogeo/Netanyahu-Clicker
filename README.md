@@ -12,7 +12,8 @@ python3 -m http.server 8000
 # then visit http://localhost:8000
 ```
 
-It also works as-is on GitHub Pages.
+Live at **https://roorogeo.github.io/Netanyahu-Clicker/**. Every push to `master` redeploys it via
+`.github/workflows/pages.yml`.
 
 ## How it works
 
