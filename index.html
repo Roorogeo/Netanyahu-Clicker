@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bibi Clicker</title>
+  <meta name="description" content="An idle clicker game of Israeli campaign politics. Click Bibi, win votes, build a coalition.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="ticker" aria-live="polite">
+    <span class="ticker-label">BREAKING</span>
+    <span id="ticker-text" class="ticker-text">Polls open. Somewhere, a campaign begins…</span>
+  </div>
+
+  <main class="layout">
+    <!-- LEFT: the big clicker -->
+    <section class="panel panel-click">
+      <header class="bank">
+        <div class="bank-title">Bibi Clicker</div>
+        <div id="votes" class="bank-votes">0 votes</div>
+        <div id="vps" class="bank-vps">per second: 0</div>
+        <div id="buffs" class="buffs"></div>
+      </header>
+
+      <div class="stage" id="stage">
+        <div class="rays" aria-hidden="true"></div>
+        <button id="bibi" class="bibi" aria-label="Click Bibi to win votes">
+          <svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- suit -->
+            <path d="M20 240 C20 190 55 170 100 168 C145 170 180 190 180 240 Z" fill="#1d2742"/>
+            <!-- shirt -->
+            <path d="M78 170 L100 214 L122 170 Z" fill="#ffffff"/>
+            <!-- tie -->
+            <path d="M94 176 L106 176 L110 186 L104 226 L100 232 L96 226 L90 186 Z" fill="#0038b8"/>
+            <path d="M94 176 L106 176 L103 184 L97 184 Z" fill="#00268a"/>
+            <!-- lapels -->
+            <path d="M78 170 L92 206 L70 190 Z" fill="#141c33"/>
+            <path d="M122 170 L108 206 L130 190 Z" fill="#141c33"/>
+            <!-- flag pin -->
+            <rect x="134" y="196" width="16" height="11" rx="1.5" fill="#fff" stroke="#c9d2e8" stroke-width="0.8"/>
+            <rect x="134" y="197.6" width="16" height="1.6" fill="#0038b8"/>
+            <rect x="134" y="203.8" width="16" height="1.6" fill="#0038b8"/>
+            <path d="M142 199.6 l1.8 3.1 h-3.6 z M142 203.8 l1.8 -3.1 h-3.6 z" fill="none" stroke="#0038b8" stroke-width="0.6"/>
+            <!-- neck -->
+            <path d="M82 140 L82 172 Q100 182 118 172 L118 140 Z" fill="#e6b48f"/>
+            <!-- ears -->
+            <ellipse cx="47" cy="100" rx="9" ry="15" fill="#efbf9b"/>
+            <ellipse cx="153" cy="100" rx="9" ry="15" fill="#efbf9b"/>
+            <!-- head -->
+            <ellipse cx="100" cy="96" rx="53" ry="62" fill="#f4c9a5"/>
+            <!-- hair -->
+            <path d="M47 92 C42 48 70 26 104 26 C140 26 160 50 154 94 C150 76 146 62 136 54 C118 46 100 58 78 50 C64 56 54 70 47 92 Z" fill="#cfd3da"/>
+            <path d="M78 50 C96 40 128 36 146 58 C126 48 104 50 78 50 Z" fill="#e4e7ec"/>
+            <!-- brows -->
+            <path d="M66 82 Q78 74 90 80" stroke="#8a8f99" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M110 80 Q122 74 134 82" stroke="#8a8f99" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <!-- eyes -->
+            <ellipse cx="78" cy="94" rx="6" ry="4.5" fill="#2b2b2b"/>
+            <ellipse cx="122" cy="94" rx="6" ry="4.5" fill="#2b2b2b"/>
+            <circle cx="80" cy="92.5" r="1.4" fill="#fff"/>
+            <circle cx="124" cy="92.5" r="1.4" fill="#fff"/>
+            <path d="M70 102 Q78 106 86 102" stroke="#d9a580" stroke-width="2" fill="none"/>
+            <path d="M114 102 Q122 106 130 102" stroke="#d9a580" stroke-width="2" fill="none"/>
+            <!-- nose -->
+            <path d="M100 96 Q96 116 92 122 Q100 128 108 122" stroke="#cf9a75" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <!-- smile -->
+            <path d="M78 136 Q100 150 122 136" stroke="#8b4a3a" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <!-- cheeks -->
+            <ellipse cx="68" cy="124" rx="9" ry="5" fill="#f0a98d" opacity="0.45"/>
+            <ellipse cx="132" cy="124" rx="9" ry="5" fill="#f0a98d" opacity="0.45"/>
+          </svg>
+        </button>
+        <div id="particles" class="particles" aria-hidden="true"></div>
+      </div>
+
+      <div class="click-hint">Click Bibi to win votes</div>
+    </section>
+
+    <!-- MIDDLE: info tabs -->
+    <section class="panel panel-info">
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="campaign" role="tab">Campaign</button>
+        <button class="tab" data-tab="stats" role="tab">Stats</button>
+        <button class="tab" data-tab="achievements" role="tab">Achievements</button>
+        <button class="tab" data-tab="election" role="tab">Election</button>
+        <button class="tab" data-tab="options" role="tab">Options</button>
+      </nav>
+
+      <div class="tab-body" id="tab-campaign">
+        <h2>Campaign HQ</h2>
+        <p class="muted">Every building you buy appears here, with what it's producing right now.</p>
+        <div id="hq" class="hq"></div>
+      </div>
+
+      <div class="tab-body hidden" id="tab-stats">
+        <h2>Statistics</h2>
+        <dl id="stats" class="stats"></dl>
+      </div>
+
+      <div class="tab-body hidden" id="tab-achievements">
+        <h2>Achievements <span id="ach-count" class="pill"></span></h2>
+        <p class="muted">Each achievement gives <b>+1% public approval</b>, which boosts all vote production.</p>
+        <div id="achievements" class="ach-grid"></div>
+      </div>
+
+      <div class="tab-body hidden" id="tab-election">
+        <h2>Call Early Elections</h2>
+        <p>Dissolve the Knesset and start over. Everything resets (votes, buildings, upgrades), but you keep
+          your <b>Knesset Seats</b>. Each seat permanently boosts production by <b>+2%</b>.</p>
+        <div class="election-box">
+          <div>Seats held: <b id="seats-held">0</b></div>
+          <div>Seats you'd win if you called an election now: <b id="seats-gain">0</b></div>
+          <div class="muted small" id="seats-next"></div>
+        </div>
+        <button id="btn-election" class="btn btn-primary">Call Early Elections</button>
+      </div>
+
+      <div class="tab-body hidden" id="tab-options">
+        <h2>Options</h2>
+        <div class="opt-row">
+          <button id="btn-save" class="btn">Save now</button>
+          <button id="btn-export" class="btn">Export save</button>
+          <button id="btn-import" class="btn">Import save</button>
+        </div>
+        <textarea id="save-text" class="save-text" placeholder="Your exported save appears here. Paste one in to import." rows="4"></textarea>
+        <div class="opt-row">
+          <label class="check"><input type="checkbox" id="opt-particles" checked> Floating numbers</label>
+          <label class="check"><input type="checkbox" id="opt-ticker" checked> News ticker</label>
+        </div>
+        <div class="opt-row">
+          <button id="btn-reset" class="btn btn-danger">Wipe save</button>
+        </div>
+        <p class="muted small">The game saves automatically every 10 seconds, to this browser only. While you're away it keeps producing at 50% speed, for up to 12 hours.</p>
+      </div>
+    </section>
+
+    <!-- RIGHT: store -->
+    <section class="panel panel-store">
+      <div class="store-head">
+        <h2>Store</h2>
+        <div class="buy-amount" role="group" aria-label="Buy amount">
+          <button class="amt active" data-amt="1">×1</button>
+          <button class="amt" data-amt="10">×10</button>
+          <button class="amt" data-amt="100">×100</button>
+        </div>
+      </div>
+      <div class="upgrades-wrap">
+        <div class="section-label">Upgrades</div>
+        <div id="upgrades" class="upgrades"></div>
+      </div>
+      <div class="section-label">Buildings</div>
+      <div id="buildings" class="buildings"></div>
+    </section>
+  </main>
+
+  <div id="tooltip" class="tooltip hidden" role="tooltip"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="game.js"></script>
+</body>
+</html>
