@@ -169,11 +169,11 @@
     [1e6, "Million-Vote March", "🚶"], [1e9, "Landslide", "⛰️"], [1e12, "Trillion Ballots", "📦"],
     [1e15, "Beyond Polling", "📈"], [1e18, "Statistical Impossibility", "🧮"],
   ].forEach(([n, name, icon], i) =>
-    addAch(`votes_${i}`, name, icon, `Win ${fmt(n)} votes in one term.`, (s) => s.totalVotes >= n));
+    addAch(`votes_${i}`, name, icon, `Win ${fmt(n)} vote${n > 1 ? "s" : ""} in one term.`, (s) => s.totalVotes >= n));
 
   [[1, "Hands-On", "👆"], [100, "Handshake Marathon", "✋"], [1000, "Carpal Campaign", "🖐️"], [10000, "Clicker-in-Chief", "🫡"]]
     .forEach(([n, name, icon], i) =>
-      addAch(`clicks_${i}`, name, icon, `Click Bibi ${fmt(n)} times.`, (s) => s.clicks >= n));
+      addAch(`clicks_${i}`, name, icon, `Click Bibi ${fmt(n)} time${n > 1 ? "s" : ""}.`, (s) => s.clicks >= n));
 
   [[10, "Grassroots", "🌱"], [1000, "Political Machine", "⚙️"], [1e6, "Unstoppable Momentum", "🚂"], [1e9, "Juggernaut", "🛡️"]]
     .forEach(([n, name, icon], i) =>

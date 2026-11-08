@@ -29,7 +29,13 @@
       <div class="stage" id="stage">
         <div class="rays" aria-hidden="true"></div>
         <button id="bibi" class="bibi" aria-label="Click Bibi to win votes">
-          <svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <span class="bibi-frame">
+            <img class="bibi-photo" alt="" draggable="false"
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Benjamin_Netanyahu_2018.jpg/500px-Benjamin_Netanyahu_2018.jpg"
+              onerror="this.closest('.bibi').classList.add('no-photo')">
+          </span>
+          <!-- Fallback cartoon, shown only if the photo can't load -->
+          <svg class="bibi-cartoon" viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <!-- suit -->
             <path d="M20 240 C20 190 55 170 100 168 C145 170 180 190 180 240 Z" fill="#1d2742"/>
             <!-- shirt -->
@@ -78,6 +84,10 @@
       </div>
 
       <div class="click-hint">Click Bibi to win votes</div>
+      <div class="photo-credit">
+        Photo: U.S. Department of State, public domain, via
+        <a href="https://commons.wikimedia.org/wiki/File:Benjamin_Netanyahu_2018.jpg" target="_blank" rel="noopener">Wikimedia Commons</a>
+      </div>
     </section>
 
     <!-- MIDDLE: info tabs -->

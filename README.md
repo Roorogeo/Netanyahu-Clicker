@@ -38,3 +38,9 @@ at 50% speed, for up to 12 hours. The Options tab lets you export and import sav
 | `index.html` | Layout and the hand-drawn SVG caricature    |
 | `style.css`  | Blue-and-white theme, responsive layout     |
 | `game.js`    | Game data, economy, saving, and the game loop |
+
+## Credits
+
+Photo of Benjamin Netanyahu: U.S. Department of State, public domain, via
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Benjamin_Netanyahu_2018.jpg).
+It loads straight from Wikimedia; if it can't load, the game shows a hand-drawn cartoon instead.

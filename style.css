@@ -21,12 +21,28 @@ html, body { margin: 0; height: 100%; }
 body {
   font-family: "Rubik", system-ui, -apple-system, Segoe UI, sans-serif;
   color: var(--ink);
-  background:
-    linear-gradient(180deg, var(--blue) 0 10px, transparent 10px),
-    linear-gradient(0deg, var(--blue) 0 10px, transparent 10px),
-    var(--bg);
-  background-attachment: fixed;
+  background: #fff;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Full-page Israeli flag, pinned behind the whole game.
+   Proportions follow the flag: 15 white / 25 blue / 80 white / 25 blue / 15 white,
+   with the Star of David in the centre. A fixed pseudo-element (rather than
+   background-attachment: fixed) keeps it steady on mobile browsers too. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 100 100'><g fill='none' stroke='%230038b8' stroke-width='5.5' stroke-linejoin='miter'><path d='M0 -42 L36.4 21 L-36.4 21 Z'/><path d='M0 42 L36.4 -21 L-36.4 -21 Z'/></g></svg>")
+      center / min(46vh, 86vw) min(46vh, 86vw) no-repeat,
+    linear-gradient(180deg,
+      #fff 0 9.375%,
+      var(--blue) 9.375% 25%,
+      #fff 25% 75%,
+      var(--blue) 75% 90.625%,
+      #fff 90.625%);
 }
 
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -74,7 +90,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 .panel {
-  background: var(--panel);
+  /* see-through so the flag reads behind the game */
+  background: rgba(255, 255, 255, 0.86);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -90,7 +109,7 @@ h2 { margin: 0 0 8px; font-size: 1.15rem; }
   flex-direction: column;
   align-items: center;
   background:
-    radial-gradient(circle at 50% 55%, #ffffff 0, var(--blue-soft) 70%);
+    radial-gradient(circle at 50% 55%, rgba(255, 255, 255, 0.94) 0, rgba(232, 238, 252, 0.84) 70%);
   position: relative;
   overflow: hidden;
 }
@@ -139,16 +158,46 @@ h2 { margin: 0 0 8px; font-size: 1.15rem; }
 
 .bibi {
   position: relative;
-  width: 72%;
-  aspect-ratio: 200 / 240;
+  width: 76%;
+  aspect-ratio: 1 / 1;
   border: 0;
   padding: 0;
   background: none;
   transition: transform 0.08s ease-out;
-  filter: drop-shadow(0 10px 18px rgba(0, 38, 138, 0.25));
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.bibi svg { width: 100%; height: 100%; display: block; }
+
+/* Round "campaign button" frame around the photo */
+.bibi-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 6px solid #fff;
+  background: var(--blue-soft);
+  box-shadow:
+    0 0 0 7px var(--blue),
+    0 0 0 11px #fff,
+    0 14px 30px rgba(0, 38, 138, 0.35);
+}
+.bibi-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* Cartoon fallback: hidden unless the photo fails to load */
+.bibi .bibi-cartoon { display: none; }
+.bibi.no-photo { width: 72%; aspect-ratio: 200 / 240; filter: drop-shadow(0 10px 18px rgba(0, 38, 138, 0.25)); }
+.bibi.no-photo .bibi-frame { display: none; }
+.bibi.no-photo .bibi-cartoon { display: block; width: 100%; height: 100%; }
 .bibi:hover { transform: scale(1.04); }
 .bibi:active, .bibi.pop { transform: scale(0.94); }
 .bibi:focus-visible { outline: 3px solid var(--gold); outline-offset: 6px; border-radius: 20px; }
@@ -169,6 +218,8 @@ h2 { margin: 0 0 8px; font-size: 1.15rem; }
 }
 
 .click-hint { color: var(--muted); font-size: 0.9rem; }
+.photo-credit { color: var(--muted); font-size: 0.72rem; text-align: center; margin-top: 4px; }
+.photo-credit a { color: var(--blue); }
 
 /* breaking news pickup */
 .news-pop {
