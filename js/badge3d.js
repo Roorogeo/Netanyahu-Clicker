@@ -2,13 +2,14 @@
 // gold rim, and a shower of 3D ballots on every click.
 import * as THREE from "three";
 import { RoomEnvironment } from "../vendor/three/addons/RoomEnvironment.js";
-import { drawFlag, drawStarOfDavid } from "./models.js";
+import { drawFlag, drawPrideFlag, drawStarOfDavid, PRIDE_COLORS } from "./models.js";
 
 const TAU = Math.PI * 2;
 
 function drawRingText(ctx, text, cx, cy, r, font, color) {
+  const colorAt = typeof color === "function" ? color : () => color;
   ctx.save();
-  ctx.font = font; ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = font; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   const chars = [...text];
   const step = TAU / chars.length;
   chars.forEach((ch, i) => {
@@ -16,20 +17,25 @@ function drawRingText(ctx, text, cx, cy, r, font, color) {
     ctx.save();
     ctx.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
     ctx.rotate(a + Math.PI / 2);
+    ctx.fillStyle = colorAt(i, chars.length);
     ctx.fillText(ch, 0, 0);
     ctx.restore();
   });
   ctx.restore();
 }
 
-function frontCanvas(photo) {
+function frontCanvas(photo, theme = "light") {
   const S = 1024, c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d");
   const g = ctx.createRadialGradient(S / 2, S / 2, S * 0.3, S / 2, S / 2, S / 2);
-  g.addColorStop(0, "#0a47d6"); g.addColorStop(1, "#00248a");
+  if (theme === "pride") { g.addColorStop(0, "#2a1a5e"); g.addColorStop(1, "#150b33"); }
+  else { g.addColorStop(0, "#0a47d6"); g.addColorStop(1, "#00248a"); }
   ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
-  drawRingText(ctx, "★ VOTE BIBI ★ VOTE BIBI ★ VOTE BIBI ", S / 2, S / 2, S * 0.43, "900 64px Rubik, Arial Black, sans-serif", "#ffffff");
+  const ringColor = theme === "pride"
+    ? (i, n) => `hsl(${Math.round((i / n) * 360)}, 95%, 62%)`
+    : "#ffffff";
+  drawRingText(ctx, "★ VOTE BIBI ★ VOTE BIBI ★ VOTE BIBI ", S / 2, S / 2, S * 0.43, "900 64px Rubik, Arial Black, sans-serif", ringColor);
   // photo disc
   ctx.save();
   ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36, 0, TAU); ctx.closePath();
@@ -41,15 +47,29 @@ function frontCanvas(photo) {
     drawStarOfDavid(ctx, S / 2, S / 2, S * 0.22, 26, "#0038b8");
   }
   ctx.restore();
-  ctx.lineWidth = 14; ctx.strokeStyle = "#ffffff";
-  ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36, 0, TAU); ctx.stroke();
+  if (theme === "pride") {
+    PRIDE_COLORS.forEach((col, i) => {
+      ctx.lineWidth = 9; ctx.strokeStyle = col;
+      ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36 + 4 + (i - 2.5) * 8, 0, TAU); ctx.stroke();
+    });
+  } else {
+    ctx.lineWidth = 14; ctx.strokeStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36, 0, TAU); ctx.stroke();
+  }
   return c;
 }
 
-function backCanvas() {
+function backCanvas(theme = "light") {
   const S = 1024, c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d");
+  if (theme === "pride") {
+    drawPrideFlag(ctx, S, S);
+    ctx.fillStyle = "#ffffff"; ctx.font = "900 78px Rubik, Arial Black, sans-serif"; ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 10;
+    ctx.fillText("PRIDE", S / 2, S * 0.9);
+    return c;
+  }
   ctx.save(); ctx.translate(0, S * 0.14); drawFlag(ctx, S, S * 0.727); ctx.restore();
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, S, S * 0.14); ctx.fillRect(0, S * 0.86, S, S * 0.14);
   ctx.fillStyle = "#0038b8"; ctx.font = "900 70px Rubik, Arial Black, sans-serif"; ctx.textAlign = "center";
@@ -134,11 +154,12 @@ export function createBadge(canvas, { photoUrl }) {
   coin.add(gloss);
   scene.add(coin);
 
-  let photoOk = false;
+  let photoOk = false, photoImg = null, theme = "light";
   if (photoUrl) {
     const img = new Image();
     img.onload = () => {
-      frontTex.image = frontCanvas(img);
+      photoImg = img;
+      frontTex.image = frontCanvas(img, theme);
       frontTex.needsUpdate = true;
       photoOk = true;
     };
@@ -244,7 +265,9 @@ export function createBadge(canvas, { photoUrl }) {
     coin.position.y = Math.sin(t * 1.3) * 0.05;
 
     gold.emissive.setRGB(rally ? 0.35 + Math.sin(t * 10) * 0.15 : flash * 0.2, rally ? 0.2 : flash * 0.12, 0);
-    haloMat.color.set(rally ? "#ffcf3f" : "#7fa6ff");
+    if (rally) haloMat.color.set("#ffcf3f");
+    else if (theme === "pride") haloMat.color.setHSL((t * 0.12) % 1, 0.95, 0.62);
+    else haloMat.color.set(theme === "dark" ? "#4f7dff" : "#7fa6ff");
     haloMat.opacity = (rally ? 0.7 : 0.35) + Math.sin(t * 2) * 0.05 + flash * 0.2;
     halo.scale.setScalar((rally ? 2.7 : 2.45) + Math.sin(t * 2) * 0.05 + flash * 0.12);
     if (rally && Math.random() < dt * 14) spawn(1);
@@ -277,6 +300,13 @@ export function createBadge(canvas, { photoUrl }) {
     hit,
     burst(n) { spawn(n); },
     setRally(on) { rally = on; },
+    setTheme(th) {
+      theme = th;
+      frontTex.image = frontCanvas(photoImg, th);
+      frontTex.needsUpdate = true;
+      backTex.image = backCanvas(th);
+      backTex.needsUpdate = true;
+    },
     get photoLoaded() { return photoOk; },
     resize,
   };

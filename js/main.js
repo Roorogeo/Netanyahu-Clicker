@@ -1,7 +1,7 @@
 // Bibi Clicker: game state, economy, UI and the glue to the 3D scenes.
 import {
   BUILDINGS, BLD_BY_ID, UPGRADES, UPG_BY_ID, MINISTERS, ACHIEVEMENTS, ACH_BY_ID,
-  NEWS_EFFECTS, DECISIONS, HEADLINES, SEATS_TOTAL,
+  NEWS_EFFECTS, DECISIONS, HEADLINES, PRIDE_HEADLINES, SEATS_TOTAL,
 } from "./data.js";
 import { sfx, setSoundEnabled, unlockAudio } from "./audio.js";
 
@@ -26,7 +26,7 @@ const freshState = () => ({
   rally: { energy: 0, until: 0, cooldownUntil: 0 },
   history: [],
   termStart: Date.now(), gameStart: Date.now(), lastSave: Date.now(),
-  opts: { particles: true, ticker: true, sound: true, flag: true, numbers: "short" },
+  opts: { particles: true, ticker: true, sound: true, flag: true, numbers: "short", theme: "auto" },
 });
 
 let state = freshState();
@@ -258,7 +258,9 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !els.mod
 
 // ---------- confetti ----------
 function confetti(n = 120) {
-  const colors = ["#0038b8", "#ffffff", "#f2b705", "#7fa6f5"];
+  const colors = currentTheme() === "pride"
+    ? ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"]
+    : ["#0038b8", "#ffffff", "#f2b705", "#7fa6f5"];
   for (let i = 0; i < n; i++) {
     const p = document.createElement("i");
     p.style.left = `${Math.random() * 100}vw`;
@@ -501,6 +503,7 @@ function spawnFloat(clientX, clientY, text) {
   let y = clientY !== undefined ? clientY - rect.top : rect.height / 2;
   const d = document.createElement("div");
   d.className = "float-num" + (rallyActive() ? " gold" : "");
+  if (currentTheme() === "pride" && !rallyActive()) d.style.color = `hsl(${Math.floor(rand(0, 360))} 85% 45%)`;
   d.textContent = text;
   d.style.left = `${x + rand(-14, 14)}px`;
   d.style.top = `${y - 12}px`;
@@ -650,7 +653,7 @@ const seatPositions = (() => {
   return seats;
 })();
 function buildHemicycle() {
-  els.hemicycle.innerHTML = seatPositions.map((s, i) => `<circle cx="${s.x.toFixed(1)}" cy="${s.y.toFixed(1)}" r="6.3" data-i="${i}"></circle>`).join("")
+  els.hemicycle.innerHTML = seatPositions.map((s, i) => `<circle cx="${s.x.toFixed(1)}" cy="${s.y.toFixed(1)}" r="6.3" style="--h:${Math.round((i / SEATS_TOTAL) * 290)}"></circle>`).join("")
     + `<line x1="200" y1="205" x2="200" y2="8" class="majority-line"></line><text x="206" y="18" class="majority-text">61 = majority</text>`;
 }
 let lastSeatRender = -1;
@@ -789,11 +792,16 @@ function drawGraph() {
   const pad = { l: 8, r: 8, t: 10, b: 18 };
   const x = (i) => pad.l + (i / Math.max(1, 239)) * (w - pad.l - pad.r);
   const y = (v) => h - pad.b - (v / max) * (h - pad.t - pad.b);
-  ctx.strokeStyle = "rgba(15,26,51,0.08)"; ctx.lineWidth = 1;
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue("--accent").trim() || "#0038b8";
+  const pride = currentTheme() === "pride";
+  ctx.strokeStyle = css.getPropertyValue("--line").trim() || "rgba(15,26,51,0.08)"; ctx.lineWidth = 1;
   for (let k = 0; k <= 3; k++) { const yy = pad.t + (k / 3) * (h - pad.t - pad.b); ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(w - pad.r, yy); ctx.stroke(); }
   const off = 240 - data.length;
   const grd = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
-  grd.addColorStop(0, "rgba(0,56,184,0.35)"); grd.addColorStop(1, "rgba(0,56,184,0)");
+  if (pride) { grd.addColorStop(0, "rgba(255,140,0,0.3)"); grd.addColorStop(0.5, "rgba(0,77,255,0.15)"); grd.addColorStop(1, "rgba(117,7,135,0)"); }
+  else if (currentTheme() === "dark") { grd.addColorStop(0, "rgba(127,166,255,0.35)"); grd.addColorStop(1, "rgba(127,166,255,0)"); }
+  else { grd.addColorStop(0, "rgba(0,56,184,0.35)"); grd.addColorStop(1, "rgba(0,56,184,0)"); }
   ctx.beginPath();
   ctx.moveTo(x(off), h - pad.b);
   data.forEach((v, i) => ctx.lineTo(x(off + i), y(v)));
@@ -801,8 +809,13 @@ function drawGraph() {
   ctx.closePath(); ctx.fillStyle = grd; ctx.fill();
   ctx.beginPath();
   data.forEach((v, i) => (i ? ctx.lineTo(x(off + i), y(v)) : ctx.moveTo(x(off + i), y(v))));
-  ctx.strokeStyle = "#0038b8"; ctx.lineWidth = 2.5; ctx.lineJoin = "round"; ctx.stroke();
-  ctx.fillStyle = "#5b6785"; ctx.font = "600 11px Rubik, sans-serif";
+  let stroke = accent;
+  if (pride) {
+    stroke = ctx.createLinearGradient(pad.l, 0, w - pad.r, 0);
+    ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"].forEach((c, i) => stroke.addColorStop(i / 5, c));
+  }
+  ctx.strokeStyle = stroke; ctx.lineWidth = 2.5; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.fillStyle = css.getPropertyValue("--muted").trim() || "#5b6785"; ctx.font = "600 11px Rubik, sans-serif";
   ctx.fillText(`peak ${fmt(max)}/s`, pad.l + 2, pad.t + 10);
   ctx.fillText("20 min ago", pad.l, h - 4);
   ctx.textAlign = "right"; ctx.fillText("now", w - pad.r, h - 4); ctx.textAlign = "left";
@@ -849,6 +862,7 @@ function nextHeadline() {
   let pick = Math.random() < 0.45 && unlocked.length
     ? unlocked[unlocked.length - 1 - Math.floor(Math.random() * Math.min(3, unlocked.length))]
     : pool[Math.floor(Math.random() * pool.length)];
+  if (currentTheme() === "pride" && Math.random() < 0.5) pick = PRIDE_HEADLINES[Math.floor(Math.random() * PRIDE_HEADLINES.length)];
   if (pick === lastHeadline) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
   lastHeadline = pick;
   el.textContent = pick;
@@ -913,6 +927,39 @@ function applyOffline() {
 }
 
 // ======================================================================
+// Themes: auto (follows the device), light, dark, pride
+// ======================================================================
+const darkMQ = window.matchMedia("(prefers-color-scheme: dark)");
+const THEMES = ["light", "dark", "pride"];
+const THEME_META = { light: "#0038b8", dark: "#060b1c", pride: "#6a1b9a" };
+const THEME_ICONS = {
+  light: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>`,
+  dark: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/><circle cx="17" cy="5" r="1" fill="currentColor"/><circle cx="20" cy="9" r="0.8" fill="currentColor"/></svg>`,
+  pride: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2.2" stroke-linecap="round">${["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"].map((c, i) => `<path d="M${2 + i * 1.5} 19a${10 - i * 1.5} ${10 - i * 1.5} 0 0 1 ${20 - i * 3} 0" stroke="${c}"/>`).join("")}</svg>`,
+};
+function currentTheme() {
+  const t = state.opts.theme || "auto";
+  return t === "auto" ? (darkMQ.matches ? "dark" : "light") : t;
+}
+function applyTheme() {
+  const th = currentTheme();
+  document.documentElement.dataset.theme = th;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = THEME_META[th];
+  const btn = $("btn-theme");
+  const next = THEMES[(THEMES.indexOf(th) + 1) % THEMES.length];
+  btn.innerHTML = THEME_ICONS[th];
+  btn.setAttribute("aria-label", `Theme: ${th}. Switch to ${next}`);
+  btn.title = `Theme: ${th} (click for ${next})`;
+  document.querySelectorAll("#opt-theme button").forEach((b) => b.classList.toggle("active", b.dataset.v === (state.opts.theme || "auto")));
+  flagBg && flagBg.setTheme(th);
+  badge && badge.setTheme(th);
+  map && map.setTheme(th);
+  if (ui.tab === "stats") drawGraph();
+}
+darkMQ.addEventListener("change", () => { if ((state.opts.theme || "auto") === "auto") applyTheme(); });
+
+// ======================================================================
 // Rendering all
 // ======================================================================
 function renderAll() {
@@ -924,6 +971,7 @@ function renderAll() {
   $("opt-flag").checked = state.opts.flag;
   document.querySelectorAll("#opt-numbers button").forEach((b) => b.classList.toggle("active", b.dataset.v === state.opts.numbers));
   updateSoundButton();
+  applyTheme();
 }
 function updateSoundButton() {
   const b = $("btn-sound");
@@ -1000,18 +1048,20 @@ async function init3D() {
   }
   try {
     const { createFlagBackground } = await import("./flag3d.js");
-    flagBg = createFlagBackground($("bg-flag"), { animate: state.opts.flag });
+    flagBg = createFlagBackground($("bg-flag"), { animate: state.opts.flag, theme: currentTheme() });
     document.body.classList.add("has-flag3d");
   } catch (e) { console.warn("Flag background unavailable", e); }
   try {
     const { createBadge } = await import("./badge3d.js");
     badge = createBadge($("badge"), { photoUrl: "assets/bibi.jpg" });
     badge.setRally(rallyActive());
+    badge.setTheme(currentTheme());
   } catch (e) { console.warn("3D badge unavailable", e); useBadgeFallback(); }
   try {
     const { createMap } = await import("./map3d.js");
     map = createMap($("map"), { buildings: BUILDINGS, onHover: mapHover });
     map.update(state.buildings);
+    map.setTheme(currentTheme());
     syncMapActive();
   } catch (e) { console.warn("3D map unavailable", e); $("map-fallback").classList.remove("hidden"); }
   updateMapEmpty();
@@ -1091,6 +1141,18 @@ function init() {
   $("btn-map-rotate").addEventListener("click", (e) => { if (map) e.target.textContent = `Auto-rotate: ${map.toggleRotate() ? "on" : "off"}`; });
   $("btn-map-reset").addEventListener("click", () => { if (map) { map.resetView(); $("btn-map-rotate").textContent = "Auto-rotate: on"; } });
 
+  $("btn-theme").addEventListener("click", () => {
+    const th = currentTheme();
+    state.opts.theme = THEMES[(THEMES.indexOf(th) + 1) % THEMES.length];
+    applyTheme();
+    if (state.opts.theme === "pride") confetti(60);
+    save();
+  });
+  document.querySelectorAll("#opt-theme button").forEach((b) => b.addEventListener("click", () => {
+    state.opts.theme = b.dataset.v;
+    applyTheme();
+    save();
+  }));
   $("btn-sound").addEventListener("click", () => {
     state.opts.sound = !state.opts.sound;
     setSoundEnabled(state.opts.sound);

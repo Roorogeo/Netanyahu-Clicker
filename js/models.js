@@ -86,7 +86,36 @@ export function drawFlag(ctx, w, h) {
   ctx.fillRect(0, h * 0.75, w, h * 0.15625);
   drawStarOfDavid(ctx, w / 2, h / 2, h * 0.19, h * 0.034, C.blue);
 }
-const flagTex = () => canvasTex("flag", 512, 372, drawFlag);
+export const PRIDE_COLORS = ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"];
+
+// Rainbow flag with a white Star of David, as flown at Tel Aviv Pride
+export function drawPrideFlag(ctx, w, h) {
+  PRIDE_COLORS.forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(0, Math.floor((i * h) / 6), w, Math.ceil(h / 6) + 1);
+  });
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = h * 0.02;
+  drawStarOfDavid(ctx, w / 2, h / 2, h * 0.21, h * 0.04, "#ffffff");
+  ctx.restore();
+}
+export function drawThemeFlag(ctx, w, h, theme) {
+  ctx.clearRect(0, 0, w, h);
+  (theme === "pride" ? drawPrideFlag : drawFlag)(ctx, w, h);
+}
+
+// Flags on the 3D models share one texture; redraw it when the theme changes
+let flagTheme = "light";
+const flagTex = () => canvasTex("flag", 512, 372, (ctx, w, h) => drawThemeFlag(ctx, w, h, flagTheme));
+export function setFlagTheme(theme) {
+  flagTheme = theme;
+  const t = texCache.get("flag");
+  if (t) {
+    drawThemeFlag(t.image.getContext("2d"), t.image.width, t.image.height, theme);
+    t.needsUpdate = true;
+  }
+}
 
 const signTex = (text, bg = "#fff", fg = C.blue) => canvasTex(`sign:${text}:${bg}:${fg}`, 256, 160, (ctx, w, h) => {
   ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);

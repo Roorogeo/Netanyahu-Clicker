@@ -19,6 +19,9 @@ build a campaign empire on a floating 3D island, and call early elections to win
 - **Knesset & elections**: reset your term for permanent seats (+2% each), shown on a 120-seat chamber chart. Seat milestones appoint **Ministers** with special powers.
 - **78 awards**, a production graph, statistics, buy ×1/10/100/Max, selling, and synthesized sound effects.
 - Autosave, offline progress, save export/import. Works on phones, with a bottom navigation bar.
+- **Themes**: Auto (follows your device), Light, **Dark** (night-time island with stars, moon and
+  lamplight) and **Pride** (rainbow flag with a Star of David, a rainbow over the island, rainbow
+  Knesset seats and extra Pride headlines). Switch with the button in the top bar or in Options.
 
 ## Run locally
 

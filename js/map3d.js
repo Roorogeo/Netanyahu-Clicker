@@ -1,7 +1,7 @@
 // The 3D campaign map: a floating island where every building you own appears.
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/three/addons/OrbitControls.js";
-import { makeModel, animateModel, mat, drawFlag, C } from "./models.js";
+import { makeModel, animateModel, mat, drawThemeFlag, setFlagTheme, PRIDE_COLORS, C } from "./models.js";
 
 const TAU = Math.PI * 2;
 
@@ -11,12 +11,18 @@ function rng(seed) {
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 }
 
-function skyTexture() {
+const SKIES = {
+  light: ["#5f8ff0", "#bcd2ff", "#f4f7ff"],
+  dark: ["#02040d", "#0c1838", "#22325f"],
+  pride: ["#5b3fd8", "#ff86b0", "#ffe0a3"],
+};
+function skyTexture(theme = "light") {
+  const [top, mid, bottom] = SKIES[theme] || SKIES.light;
   const c = document.createElement("canvas");
   c.width = 4; c.height = 512;
   const ctx = c.getContext("2d");
   const g = ctx.createLinearGradient(0, 0, 0, 512);
-  g.addColorStop(0, "#5f8ff0"); g.addColorStop(0.55, "#bcd2ff"); g.addColorStop(1, "#f4f7ff");
+  g.addColorStop(0, top); g.addColorStop(0.55, mid); g.addColorStop(1, bottom);
   ctx.fillStyle = g; ctx.fillRect(0, 0, 4, 512);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -96,7 +102,8 @@ export function createMap(canvas, { buildings, onHover }) {
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.35;
 
-  scene.add(new THREE.HemisphereLight("#e4edff", "#b59d70", 1.05));
+  const hemi = new THREE.HemisphereLight("#e4edff", "#b59d70", 1.05);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight("#fff4e0", 2.3);
   sun.position.set(10, 18, 7);
   sun.castShadow = true;
@@ -132,7 +139,7 @@ export function createMap(canvas, { buildings, onHover }) {
   // central flagpole with a big waving flag
   const flagC = document.createElement("canvas");
   flagC.width = 512; flagC.height = 372;
-  drawFlag(flagC.getContext("2d"), 512, 372);
+  drawThemeFlag(flagC.getContext("2d"), 512, 372, "light");
   const flagTex = new THREE.CanvasTexture(flagC); flagTex.colorSpace = THREE.SRGBColorSpace;
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 5.5, 12), mat(C.silver, { metalness: 0.8, roughness: 0.3 }));
   pole.position.set(0, 2.75, 0); pole.castShadow = true;
@@ -170,6 +177,59 @@ export function createMap(canvas, { buildings, onHover }) {
     cl.scale.setScalar(0.9 + r() * 0.9);
     scene.add(cl);
     clouds.push(cl);
+  }
+
+  // ---- theme extras: stars + moon (dark), rainbow (pride) ----
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = [];
+  const rs = rng(99);
+  for (let i = 0; i < 900; i++) {
+    const u = rs() * TAU, v = Math.acos(rs() * 1.6 - 0.6), d = 80;
+    starPos.push(Math.sin(v) * Math.cos(u) * d, Math.cos(v) * d, Math.sin(v) * Math.sin(u) * d);
+  }
+  starGeo.setAttribute("position", new THREE.Float32BufferAttribute(starPos, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: "#ffffff", size: 0.35, sizeAttenuation: true, fog: false }));
+  scene.add(stars);
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(2.2, 32, 24), new THREE.MeshBasicMaterial({ color: "#fff6d8", fog: false }));
+  moon.position.set(-30, 26, -40);
+  scene.add(moon);
+  const rainbow = new THREE.Group();
+  PRIDE_COLORS.forEach((col, i) => {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(15 - i * 0.55, 0.28, 8, 96, Math.PI),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.82, fog: false }));
+    rainbow.add(band);
+  });
+  rainbow.position.set(0, -1.5, -6);
+  scene.add(rainbow);
+  const lamps = []; // warm glow around the plaza at night
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU + Math.PI / 4;
+    const l = new THREE.PointLight("#ffcf7a", 0, 9, 1.6);
+    l.position.set(Math.cos(a) * 3.3, 1.4, Math.sin(a) * 3.3);
+    scene.add(l);
+    lamps.push(l);
+  }
+
+  const LOOKS = {
+    light: { fog: "#cfdcff", hemi: 1.05, sun: 2.3, sunC: "#fff4e0", exp: 1.1 },
+    dark: { fog: "#0c1838", hemi: 0.28, sun: 0.45, sunC: "#9fb6ff", exp: 0.95 },
+    pride: { fog: "#ffc1cf", hemi: 1.0, sun: 2.1, sunC: "#ffe6cc", exp: 1.08 },
+  };
+  function setTheme(th) {
+    const L = LOOKS[th] || LOOKS.light;
+    if (scene.background) scene.background.dispose();
+    scene.background = skyTexture(th);
+    scene.fog.color.set(L.fog);
+    hemi.intensity = L.hemi;
+    sun.intensity = L.sun;
+    sun.color.set(L.sunC);
+    renderer.toneMappingExposure = L.exp;
+    stars.visible = moon.visible = th === "dark";
+    lamps.forEach((l) => { l.intensity = th === "dark" ? 6 : 0; });
+    rainbow.visible = th === "pride";
+    drawThemeFlag(flagC.getContext("2d"), 512, 372, th);
+    flagTex.needsUpdate = true;
+    setFlagTheme(th);
   }
 
   // ---- districts ----
@@ -327,6 +387,7 @@ export function createMap(canvas, { buildings, onHover }) {
   return {
     update,
     resize,
+    setTheme,
     setActive(on) { active = on; if (on) resize(); },
     resetView() {
       camera.position.set(17, 13, 17);

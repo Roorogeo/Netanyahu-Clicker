@@ -294,4 +294,15 @@ export const HEADLINES = [
   [-1, "Shuk vendors report record demand for blue-and-white everything."],
 ];
 
+// Extra headlines mixed into the ticker in Pride mode
+export const PRIDE_HEADLINES = [
+  "Tel Aviv Pride parade draws record crowds to the beachfront.",
+  "Rainbow flags spotted on every balcony on Rothschild Boulevard.",
+  "Campaign volunteers hand out rainbow stickers and free iced coffee.",
+  "Gordon Beach dance party goes until sunrise. Turnout: excellent.",
+  "Campaign HQ reports glitter in every drawer. Cleanup expected to take years.",
+  "Pride Week brings music, color and very long falafel lines to Tel Aviv.",
+  "Local grandmother marches in her first Pride parade, waves the biggest flag.",
+];
+
 export const SEATS_TOTAL = 120;
