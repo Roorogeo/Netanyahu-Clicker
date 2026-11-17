@@ -53,6 +53,36 @@ export const THEMES = [
     ],
   },
   {
+    id: "bhm", name: "Black History Month", tone: "dark", swatch: ["#e31b23", "#111111", "#00853f"],
+    vars: {
+      "--ink": "#fbf6ea", "--muted": "#cfc3a8", "--accent": "#f5b800", "--on-accent": "#111111", "--page-bg": "#0b0b0b",
+      "--blue-soft": "rgba(245, 184, 0, 0.16)", "--accent-grad": "linear-gradient(180deg, #ffd23f, #c99700)",
+      "--rally-grad": "linear-gradient(90deg, #e31b23, #f5b800, #00853f)",
+      "--glass": "rgba(16, 14, 12, 0.76)", "--glass-strong": "rgba(16, 14, 12, 0.95)", "--surface": "rgba(36, 32, 26, 0.85)",
+      "--surface-solid": "#1f1b16", "--surface-soft": "rgba(36, 32, 26, 0.55)", "--seat-empty": "#3a342b",
+      "--line": "rgba(245, 184, 0, 0.2)", "--glass-line": "rgba(245, 184, 0, 0.28)",
+      "--ico-bg": "radial-gradient(circle at 50% 40%, #3b342a, #15120e)", "--upg-bg": "radial-gradient(circle at 50% 35%, #3b342a, #15120e)",
+    },
+    // The Pan-African flag: red, black and green
+    flag: { type: "stripes", colors: ["#e31b23", "#111111", "#00853f"], label: "★", labelColor: "#f5b800" },
+    bg: { color: "#0b0b0b", amb: 0.45, sun: 1.8, sunC: "#ffd27a", fill: 0.4, exp: 0.95 },
+    map: { sky: ["#1a0d05", "#8a4a10", "#f5b800"], fog: "#5a3010", hemi: 0.7, sun: 1.6, sunC: "#ffc35a", exp: 1.0, grass: "#6f9a3f", sand: "#d9b26a", extras: ["bunting", "lamps"] },
+    coin: { bg: ["#1c1c1c", "#050505"], text: "#f5b800", ring: ["#e31b23", "#f5b800", "#00853f"], halo: "#f5b800" },
+    confetti: ["#e31b23", "#111111", "#00853f", "#f5b800"],
+    meta: "#0b0b0b",
+    headlines: [
+      "Celebrating Black History Month: honoring Black history, culture and achievement.",
+      "History: Black History Month grew out of Negro History Week, started by historian Carter G. Woodson in 1926.",
+      "History: February was chosen because it holds the birthdays of Frederick Douglass and Abraham Lincoln.",
+      "History: the United States has officially recognized Black History Month since 1976.",
+      "History: Operation Moses (1984–85) brought about 8,000 Ethiopian Jews to Israel.",
+      "History: Operation Solomon airlifted more than 14,000 Ethiopian Jews to Israel in about 36 hours in 1991.",
+      "History: Sigd, the Ethiopian Jewish holiday, became an official Israeli national holiday in 2008.",
+      "History: in 2013, Pnina Tamano-Shata became the first Ethiopian-born woman elected to the Knesset.",
+    ],
+    headlineChance: 0.6,
+  },
+  {
     id: "desert", name: "Negev Sunset", tone: "light", swatch: ["#ff7e5f", "#feb47b", "#7c2d12"],
     vars: {
       "--ink": "#3b1d0a", "--muted": "#8a5a3c", "--accent": "#c2410c", "--blue-soft": "#fde7d3", "--page-bg": "#f6d9b8",

@@ -46,10 +46,12 @@ function frontCanvas(photo, theme) {
   if (photo) ctx.drawImage(photo, S / 2 - S * 0.36, S / 2 - S * 0.36, S * 0.72, S * 0.72);
   else drawStarOfDavid(ctx, S / 2, S / 2, S * 0.22, 26, "#0038b8");
   ctx.restore();
-  if (coin.ring === "rainbow") {
-    PRIDE_COLORS.forEach((col, i) => {
-      ctx.lineWidth = 9; ctx.strokeStyle = col;
-      ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36 + 4 + (i - 2.5) * 8, 0, TAU); ctx.stroke();
+  if (coin.ring === "rainbow" || Array.isArray(coin.ring)) {
+    const cols = coin.ring === "rainbow" ? PRIDE_COLORS : coin.ring;
+    const wdt = 48 / cols.length;
+    cols.forEach((col, i) => {
+      ctx.lineWidth = wdt + 1; ctx.strokeStyle = col;
+      ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36 + 4 + (i - (cols.length - 1) / 2) * wdt, 0, TAU); ctx.stroke();
     });
   } else {
     ctx.lineWidth = 14; ctx.strokeStyle = coin.ring;
@@ -68,6 +70,14 @@ function backCanvas(theme) {
     ctx.fillStyle = "#ffffff"; ctx.font = "900 78px Rubik, Arial Black, sans-serif"; ctx.textAlign = "center";
     ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 10;
     ctx.fillText("PRIDE", S / 2, S * 0.9);
+    return c;
+  }
+  if (flag && flag.type === "stripes") {
+    flag.colors.forEach((col, i) => { ctx.fillStyle = col; ctx.fillRect(0, (i * S) / flag.colors.length, S, S / flag.colors.length + 1); });
+    if (flag.label) {
+      ctx.fillStyle = flag.labelColor || "#ffffff"; ctx.font = "900 64px Rubik, Arial Black, sans-serif"; ctx.textAlign = "center";
+      ctx.textBaseline = "middle"; ctx.fillText(flag.label, S / 2, S / 2);
+    }
     return c;
   }
   const spec = flag || {};

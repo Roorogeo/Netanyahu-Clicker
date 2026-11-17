@@ -16,10 +16,10 @@
     (function () {
       var t = "auto";
       try { t = JSON.parse(decodeURIComponent(escape(atob(localStorage.getItem("bibiClickerSave.v1") || "")))).opts.theme || "auto"; } catch (e) {}
-      var known = ["light", "dark", "pride", "desert", "beach", "jerusalem", "galilee", "neon", "snow", "hanukkah", "election", "contrast"];
+      var known = ["light", "dark", "pride", "bhm", "desert", "beach", "jerusalem", "galilee", "neon", "snow", "hanukkah", "election", "contrast"];
       if (t === "auto" || known.indexOf(t) < 0) t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       document.documentElement.dataset.theme = t;
-      document.documentElement.dataset.tone = ["dark", "neon", "hanukkah", "election", "contrast"].indexOf(t) >= 0 ? "dark" : "light";
+      document.documentElement.dataset.tone = ["dark", "bhm", "neon", "hanukkah", "election", "contrast"].indexOf(t) >= 0 ? "dark" : "light";
     })();
   </script>
   <script type="importmap">
@@ -94,6 +94,7 @@
       <nav class="tabs" role="tablist">
         <button class="tab active" data-tab="map" role="tab"><img src="assets/icons/branch.png" alt="">Map</button>
         <button class="tab" data-tab="knesset" role="tab"><img src="assets/icons/chair.png" alt="">Knesset</button>
+        <button class="tab" data-tab="legacy" role="tab"><img src="assets/icons/crown.png" alt="">Legacy<span class="tab-dot hidden" id="legacy-dot"></span></button>
         <button class="tab" data-tab="stats" role="tab"><img src="assets/icons/clock.png" alt="">Stats</button>
         <button class="tab" data-tab="achievements" role="tab"><img src="assets/icons/medal.png" alt="">Awards</button>
         <button class="tab" data-tab="options" role="tab"><img src="assets/icons/briefcase.png" alt="">Options</button>
@@ -130,9 +131,21 @@
           <div class="election-row"><span>Seats you'd win if you called an election now</span><b id="seats-gain">0</b></div>
           <div class="election-row muted small" id="seats-next"></div>
           <button id="btn-election" class="btn btn-primary btn-big">Call Early Elections</button>
+          <div class="election-row"><span>Political Capital to spend in the Legacy Tree</span><b id="pc-knesset">0</b></div>
+          <button id="btn-open-tree" class="btn">Open the Legacy Tree</button>
         </div>
         <h3>Ministers</h3>
         <div id="ministers" class="ministers"></div>
+      </div>
+
+      <div class="tab-body hidden" id="tab-legacy">
+        <h2>Legacy Tree</h2>
+        <p class="muted">Every Knesset seat you win in an election gives <b>1 Political Capital</b>. Spend it on permanent perks that survive every election. Start at the bottom and work up; the crown at the top needs all four branches.</p>
+        <div class="legacy-bar">
+          <div class="pc-box"><img src="assets/icons/crown.png" alt=""><div><b id="pc-avail">0</b><span>Political Capital</span></div></div>
+          <button id="btn-respec" class="btn">Refund all points (free)</button>
+        </div>
+        <div class="tree" id="tree"><svg class="tree-lines" id="tree-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>
       </div>
 
       <div class="tab-body hidden" id="tab-stats">

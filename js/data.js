@@ -172,6 +172,36 @@ export const MINISTERS = [
   { seats: 120, id: "fullhouse", name: "Full House", icon: "crown", desc: "All production <b>×2</b>." },
 ];
 
+// ---------- Legacy Tree (prestige) ----------
+// Bought with Political Capital: 1 point per Knesset seat won in elections. Kept forever.
+// x/y place the node on the tree (0-100). A node needs all of its parents.
+export const TREE = [
+  { id: "root", name: "Party Founder", icon: "ballot", cost: 1, x: 50, y: 90, parents: [], desc: "All production <b>+10%</b>." },
+
+  { id: "door", name: "Door-to-Door", icon: "volunteer", cost: 2, x: 12, y: 70, parents: ["root"], branch: "Grassroots", desc: "Volunteers and Falafel Stands are <b>twice</b> as effective." },
+  { id: "heroes", name: "Local Heroes", icon: "branch", cost: 5, x: 12, y: 52, parents: ["door"], branch: "Grassroots", desc: "All buildings are <b>10% cheaper</b>." },
+  { id: "machine", name: "Machine Politics", icon: "coalition", cost: 15, x: 12, y: 34, parents: ["heroes"], branch: "Grassroots", desc: "<b>+2%</b> production for every building type you own." },
+  { id: "movement", name: "Mass Movement", icon: "hora", cost: 40, x: 12, y: 16, parents: ["machine"], branch: "Grassroots", desc: "All production <b>×1.5</b>." },
+
+  { id: "orator", name: "Born Orator", icon: "mic", cost: 2, x: 37, y: 70, parents: ["root"], branch: "Charisma", desc: "Clicks are <b>three times</b> as effective." },
+  { id: "surfer", name: "Crowd Surfer", icon: "megaphone", cost: 5, x: 37, y: 52, parents: ["orator"], branch: "Charisma", desc: "The Rally meter fills <b>twice as fast</b>." },
+  { id: "encore", name: "Encore!", icon: "fireworks", cost: 15, x: 37, y: 34, parents: ["surfer"], branch: "Charisma", desc: "Rallies last <b>10 seconds longer</b>." },
+  { id: "magnetic", name: "Magnetic", icon: "star", cost: 40, x: 37, y: 16, parents: ["encore"], branch: "Charisma", desc: "Each click also earns <b>+3%</b> of your votes per second." },
+
+  { id: "spin", name: "Spin Doctor", icon: "newspaper", cost: 2, x: 63, y: 70, parents: ["root"], branch: "Media", desc: "Breaking News appears <b>50% more often</b>." },
+  { id: "headline", name: "Headline Grabber", icon: "tv", cost: 5, x: 63, y: 52, parents: ["spin"], branch: "Media", desc: "Breaking News effects last <b>50% longer</b>." },
+  { id: "kingmaker", name: "Kingmaker", icon: "scroll", cost: 15, x: 63, y: 34, parents: ["headline"], branch: "Media", desc: "Cabinet Decision vote rewards are <b>tripled</b>." },
+  { id: "empire", name: "Media Empire", icon: "satellite", cost: 40, x: 63, y: 16, parents: ["kingmaker"], branch: "Media", desc: "Landslide Forecasts are <b>three times</b> as likely." },
+
+  { id: "nightowl", name: "Night Owl", icon: "clock", cost: 2, x: 88, y: 70, parents: ["root"], branch: "Strategy", desc: "Production while you're away <b>+25%</b>." },
+  { id: "headstart", name: "Head Start", icon: "falafel", cost: 5, x: 88, y: 52, parents: ["nightowl"], branch: "Strategy", desc: "Start each term with <b>25 Volunteers, 10 Falafel Stands and 5 Branch Offices</b>." },
+  { id: "seasoned", name: "Seasoned Campaign", icon: "briefcase", cost: 15, x: 88, y: 34, parents: ["headstart"], branch: "Strategy", desc: "All upgrades are <b>15% cheaper</b>." },
+  { id: "dynasty", name: "Dynasty", icon: "chair", cost: 40, x: 88, y: 16, parents: ["seasoned"], branch: "Strategy", desc: "Each Knesset seat gives <b>+3%</b> production instead of +2%." },
+
+  { id: "eternal", name: "The Eternal Campaign", icon: "crown", cost: 100, x: 50, y: 4, parents: ["movement", "magnetic", "empire", "dynasty"], desc: "All production <b>×3</b>. Requires all four branches." },
+];
+export const TREE_BY_ID = Object.fromEntries(TREE.map((n) => [n.id, n]));
+
 // ---------- achievements ----------
 export const ACHIEVEMENTS = [];
 const ach = (id, name, icon, medal, desc, test) => ACHIEVEMENTS.push({ id, name, icon, medal, desc, test });
@@ -214,6 +244,9 @@ BUILDINGS.forEach((b) => {
   .forEach(([n, name, medal], i) => ach(`decide_${i}`, name, "scroll", medal,
     { text: () => `Make ${n} Cabinet ${plural(n, "Decision", "Decisions")}.` }, (s) => s.decisions >= n));
 
+ach("tree_1", "Founding Father", "ballot", "medalBronze", { text: () => "Unlock your first Legacy Tree node." }, (s) => (s.tree || []).length >= 1);
+ach("tree_branch", "Branching Out", "coalition", "medalSilver", { text: () => "Complete a whole branch of the Legacy Tree." }, (s) => ["movement", "magnetic", "empire", "dynasty"].some((id) => (s.tree || []).includes(id)));
+ach("tree_all", "Living Legacy", "crown", "medal", { text: () => "Unlock The Eternal Campaign." }, (s) => (s.tree || []).includes("eternal"));
 ach("seats_61", "Majority!", "chair", "medal", { text: () => "Hold 61 Knesset seats." }, (s) => s.seats >= 61);
 ach("seats_120", "The Whole Knesset", "crown", "medal", { text: () => "Hold 120 Knesset seats." }, (s) => s.seats >= 120);
 ach("upg_all10", "Policy Wonk", "bulb", "medalBronze", { text: () => "Own 10 upgrades." }, (s) => s.upgrades.length >= 10);

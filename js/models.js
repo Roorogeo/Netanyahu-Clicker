@@ -105,10 +105,18 @@ export function drawPrideFlag(ctx, w, h) {
   drawStarOfDavid(ctx, w / 2, h / 2, h * 0.21, h * 0.04, "#ffffff");
   ctx.restore();
 }
-// spec: "pride" | { type: "pride" } | { field, stripe, star, glow } | undefined (classic)
+export function drawStripes(ctx, w, h, colors) {
+  colors.forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(0, Math.floor((i * h) / colors.length), w, Math.ceil(h / colors.length) + 1);
+  });
+}
+
+// spec: "pride" | { type: "pride" } | { type: "stripes", colors } | { field, stripe, star, glow } | undefined (classic)
 export function drawThemeFlag(ctx, w, h, spec) {
   ctx.clearRect(0, 0, w, h);
   if (spec === "pride" || (spec && spec.type === "pride")) drawPrideFlag(ctx, w, h);
+  else if (spec && spec.type === "stripes") drawStripes(ctx, w, h, spec.colors);
   else drawFlag(ctx, w, h, typeof spec === "object" ? spec : {});
 }
 

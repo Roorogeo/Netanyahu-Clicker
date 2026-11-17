@@ -19,10 +19,14 @@ build a campaign empire on a floating 3D island, and call early elections to win
 - **Knesset & elections**: reset your term for permanent seats (+2% each), shown on a 120-seat chamber chart. Seat milestones appoint **Ministers** with special powers.
 - **78 awards**, a production graph, statistics, buy ×1/10/100/Max, selling, and synthesized sound effects.
 - Autosave, offline progress, save export/import. Works on phones, with a bottom navigation bar.
-- **12 themes**, plus Auto (follows your device): Classic, Midnight, Pride, Negev Sunset, Tel Aviv Beach,
+- **Legacy Tree** (prestige tree): every Knesset seat won in an election gives 1 Political Capital to spend on
+  18 permanent perks in four branches (Grassroots, Charisma, Media, Strategy), capped by The Eternal Campaign.
+  Refunds are free. Saves from before the tree get Political Capital equal to their seats.
+- **13 themes**, plus Auto (follows your device): Classic, Midnight, Pride, Black History Month, Negev Sunset, Tel Aviv Beach,
   Jerusalem Gold, Galilee Spring, Neon Nights, Hermon Snow, Festival of Lights, Election Night and High Contrast.
   Each one restyles the UI, the flag, the coin and the 3D island, with extras like stars and a moon, a rainbow, the sea,
-  desert dunes, old-city walls, wildflowers, a neon grid, falling snow, a menorah, spotlights and fireworks.
+  desert dunes, old-city walls, wildflowers, a neon grid, falling snow, a menorah, spotlights, fireworks and pennant bunting.
+  The Black History Month theme uses the Pan-African colors and adds history notes to the ticker.
   Pick one from the swatch button in the top bar or in Options.
 - **Upgrades change the 3D world**:
   - building tier upgrades put bronze → diamond pedestals (and glow rings) under that building type on the island;
@@ -50,7 +54,7 @@ python3 -m http.server 8000
 | `css/style.css` | Glass-panel UI, responsive layout |
 | `js/main.js` | Game state, economy, UI, events, save/load |
 | `js/data.js` | All content: buildings, upgrades, ministers, awards, events, headlines |
-| `js/themes.js` | The 12 themes: UI colors, flag, coin, sky, lighting and island extras |
+| `js/themes.js` | The 13 themes: UI colors, flag, coin, sky, lighting and island extras |
 | `js/models.js` | Procedural low-poly 3D models, shared by the map and the icon renderer |
 | `js/badge3d.js` | The clickable 3D coin |
 | `js/map3d.js` | The 3D campaign island |

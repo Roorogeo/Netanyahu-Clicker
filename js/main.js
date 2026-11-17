@@ -1,7 +1,7 @@
 // Bibi Clicker: game state, economy, UI and the glue to the 3D scenes.
 import {
   BUILDINGS, BLD_BY_ID, UPGRADES, UPG_BY_ID, MINISTERS, ACHIEVEMENTS, ACH_BY_ID,
-  NEWS_EFFECTS, DECISIONS, HEADLINES, SEATS_TOTAL,
+  NEWS_EFFECTS, DECISIONS, HEADLINES, SEATS_TOTAL, TREE, TREE_BY_ID,
 } from "./data.js";
 import { THEMES, THEME_BY_ID } from "./themes.js";
 import { sfx, setSoundEnabled, unlockAudio } from "./audio.js";
@@ -25,6 +25,7 @@ const freshState = () => ({
   buildings: Object.fromEntries(BUILDINGS.map((b) => [b.id, 0])),
   upgrades: [], achievements: [], buffs: [],
   rally: { energy: 0, until: 0, cooldownUntil: 0 },
+  pc: 0, tree: [], // Political Capital and Legacy Tree nodes (kept forever)
   history: [],
   termStart: Date.now(), gameStart: Date.now(), lastSave: Date.now(),
   opts: { particles: true, ticker: true, sound: true, flag: true, numbers: "short", theme: "auto" },
@@ -80,8 +81,11 @@ const minister = (id) => {
 };
 const rallyActive = () => Date.now() < state.rally.until;
 
-function buildingDiscount() { return minister("transport") ? 0.95 : 1; }
-function upgradeCost(u) { return Math.ceil(u.cost * (minister("science") ? 0.9 : 1)); }
+const perk = (id) => (state.tree || []).includes(id);
+const seatBonus = () => (perk("dynasty") ? 0.03 : SEAT_BONUS);
+function buildingDiscount() { return (minister("transport") ? 0.95 : 1) * (perk("heroes") ? 0.9 : 1); }
+function upgradeCost(u) { return Math.ceil(u.cost * (minister("science") ? 0.9 : 1) * (perk("seasoned") ? 0.85 : 1)); }
+function rallyDuration() { return (10 + (has("rally_1") ? 5 : 0) + (perk("encore") ? 10 : 0)) * (minister("culture") ? 1.5 : 1); }
 
 function buildingCost(b, amount = 1) {
   const first = b.cost * Math.pow(PRICE_GROWTH, state.buildings[b.id]) * buildingDiscount();
@@ -107,11 +111,15 @@ function resolveAmount(b) {
 function globalMultiplier() {
   let m = 1;
   for (const id of state.upgrades) { const u = UPG_BY_ID[id]; if (u && u.kind === "global") m += u.value; }
-  m *= 1 + state.seats * SEAT_BONUS;
+  m *= 1 + state.seats * seatBonus();
   m *= 1 + state.achievements.length * ACH_BONUS;
   if (minister("finance")) m *= 1.1;
   if (minister("majority")) m *= 1.5;
   if (minister("fullhouse")) m *= 2;
+  if (perk("root")) m *= 1.1;
+  if (perk("machine")) m *= 1 + 0.02 * BUILDINGS.filter((b) => state.buildings[b.id] > 0).length;
+  if (perk("movement")) m *= 1.5;
+  if (perk("eternal")) m *= 3;
   return m;
 }
 function buffMult(key) {
@@ -132,6 +140,7 @@ function recalc() {
       if (u.kind === "building") mult *= u.value;
       if (u.kind === "synergy") mult *= 1 + u.value * state.buildings[u.source];
     }
+    if (perk("door") && (b.id === "volunteer" || b.id === "falafel")) mult *= 2;
     const each = b.vps * mult * g;
     cache.perBuilding[b.id] = { each, total: each * state.buildings[b.id], mult };
     total += each * state.buildings[b.id];
@@ -146,6 +155,8 @@ function recalc() {
     if (u.kind === "click") click *= u.value;
     if (u.kind === "clickVps") clickVpsFrac += u.value;
   }
+  if (perk("orator")) click *= 3;
+  if (perk("magnetic")) clickVpsFrac += 0.03;
   cache.clickPower = (click * Math.sqrt(g) + clickVpsFrac * cache.vps) * buffMult("clickMult") * (rallyActive() ? RALLY_CLICK_MULT : 1);
 }
 
@@ -157,7 +168,7 @@ function earn(n) {
 
 const seatsTotalFor = (allTime) => Math.floor(Math.sqrt(allTime / 1e9));
 const seatsGainable = () => Math.max(0, seatsTotalFor(state.allTimeVotes) - state.seats);
-const offlineRate = () => Math.min(1, 0.5 + (has("offline_0") ? 0.25 : 0) + (minister("tourism") ? 0.25 : 0));
+const offlineRate = () => Math.min(1.25, 0.5 + (has("offline_0") ? 0.25 : 0) + (minister("tourism") ? 0.25 : 0) + (perk("nightowl") ? 0.25 : 0));
 
 // ======================================================================
 // DOM helpers
@@ -456,13 +467,13 @@ function clickBibi(clientX, clientY) {
   // rally meter
   const now = Date.now();
   if (!rallyActive() && now >= state.rally.cooldownUntil) {
-    state.rally.energy = Math.min(100, state.rally.energy + 3 * (has("rally_0") ? 1.5 : 1));
+    state.rally.energy = Math.min(100, state.rally.energy + 3 * (has("rally_0") ? 1.5 : 1) * (perk("surfer") ? 2 : 1));
     if (state.rally.energy >= 100) startRally();
   }
 }
 
 function startRally() {
-  const dur = (10 + (has("rally_1") ? 5 : 0)) * (minister("culture") ? 1.5 : 1);
+  const dur = rallyDuration();
   state.rally.until = Date.now() + dur * 1000;
   state.rally.energy = 100;
   state.rallies++;
@@ -479,7 +490,7 @@ function updateRally(dt) {
   const now = Date.now();
   if (rallyActive()) {
     const left = (state.rally.until - now) / 1000;
-    const total = (10 + (has("rally_1") ? 5 : 0)) * (minister("culture") ? 1.5 : 1);
+    const total = rallyDuration();
     state.rally.energy = Math.max(0, (left / total) * 100);
     els.rallyLabel.textContent = `RALLY! Clicks ×${RALLY_CLICK_MULT}, production ×${RALLY_VPS_MULT} · ${Math.ceil(left)}s`;
   } else {
@@ -522,7 +533,7 @@ function spawnFloat(clientX, clientY, text) {
 let nextNewsAt = Date.now() + rand(40, 100) * 1000;
 let newsEl = null;
 function scheduleNews() {
-  let f = has("news_0") ? 2 : 1;
+  let f = (has("news_0") ? 2 : 1) * (perk("spin") ? 1.5 : 1);
   if (minister("comms")) f *= 1.3;
   nextNewsAt = Date.now() + (rand(60, 170) * 1000) / f;
 }
@@ -572,9 +583,9 @@ function collectNews() {
   if (!newsEl) return;
   unlockAudio();
   state.newsClicked++;
-  const eff = pickWeighted(NEWS_EFFECTS);
+  const eff = pickWeighted(NEWS_EFFECTS.map((e) => (e.id === "landslide" && perk("empire") ? { ...e, weight: e.weight * 3 } : e)));
   if (eff.buff) {
-    const dur = addBuff(eff.buff, has("news_1") ? 2 : 1);
+    const dur = addBuff(eff.buff, (has("news_1") ? 2 : 1) * (perk("headline") ? 1.5 : 1));
     toast(eff.title, eff.body.replace("{d}", Math.round(dur)), eff.buff.icon, "gold");
   } else {
     const v = lumpVotes(eff.lump.vpsSeconds, eff.lump.bankFrac);
@@ -610,7 +621,7 @@ function applyEffect(e) {
     return { title: e.buff.label, body: `Active for ${Math.round(dur)} seconds.`, icon: e.buff.icon };
   }
   if (e.lumpVps) {
-    const v = lumpVotes(e.lumpVps);
+    const v = lumpVotes(e.lumpVps * (perk("kingmaker") ? 3 : 1));
     return { title: "Decision made", body: `+${fmtBig(v)} votes.`, icon: "ballot" };
   }
   return { title: "Done", body: "", icon: "scroll" };
@@ -689,7 +700,7 @@ function callElection() {
   showModal({
     icon: "chair",
     title: "Call early elections?",
-    body: `<p>You'll win <b>${fmt(gain)}</b> new Knesset ${gain === 1 ? "seat" : "seats"} (+${fmt(gain * SEAT_BONUS * 100)}% production, permanently).</p>
+    body: `<p>You'll win <b>${fmt(gain)}</b> new Knesset ${gain === 1 ? "seat" : "seats"} (+${fmt(gain * seatBonus() * 100)}% production, permanently) and <b>${fmt(gain)}</b> Political Capital to spend in the Legacy Tree.</p>
       ${newMinisters.length ? `<p>New ministers: <b>${newMinisters.map((m) => m.name).join(", ")}</b>.</p>` : ""}
       <p class="muted">You'll lose this term's votes, buildings and upgrades. Seats, awards and ministers stay.</p>`,
     actions: [
@@ -700,12 +711,18 @@ function callElection() {
 }
 function doElection(gain) {
   const keep = {
+    pc: (state.pc || 0) + gain, tree: state.tree || [],
     allTimeVotes: state.allTimeVotes, seats: state.seats + gain, elections: state.elections + 1,
     achievements: state.achievements, newsClicked: state.newsClicked, rallies: state.rallies,
     decisions: state.decisions, bestVps: state.bestVps, gameStart: state.gameStart, opts: state.opts,
   };
   state = Object.assign(freshState(), keep);
   if (minister("education")) { state.buildings.volunteer = 10; state.buildings.falafel = 5; }
+  if (perk("headstart")) {
+    state.buildings.volunteer = Math.max(state.buildings.volunteer, 25);
+    state.buildings.falafel = Math.max(state.buildings.falafel, 10);
+    state.buildings.branch = Math.max(state.buildings.branch, 5);
+  }
   upgSignature = "";
   recalc();
   map && map.update(state.buildings);
@@ -714,6 +731,94 @@ function doElection(gain) {
   confetti(160);
   toast("Election results are in!", `You now hold ${fmt(state.seats)} Knesset seats. A new term begins.`, "chair", "gold");
   save();
+}
+
+// ======================================================================
+// Legacy Tree (prestige)
+// ======================================================================
+const treeEls = {};
+const parentsOwned = (n) => n.parents.every((id) => perk(id));
+function buildTree() {
+  const box = $("tree"), svg = $("tree-lines");
+  svg.innerHTML = TREE.flatMap((n) => n.parents.map((pid) => {
+    const p = TREE_BY_ID[pid];
+    return `<line x1="${p.x}" y1="${p.y}" x2="${n.x}" y2="${n.y}" data-from="${pid}" data-to="${n.id}"></line>`;
+  })).join("");
+  const branches = {};
+  TREE.forEach((n) => { if (n.branch && !branches[n.branch]) branches[n.branch] = n.x; });
+  Object.entries(branches).forEach(([name, x]) => {
+    const l = document.createElement("div");
+    l.className = "tbranch";
+    l.style.left = `${x}%`;
+    l.textContent = name;
+    box.appendChild(l);
+  });
+  TREE.forEach((n) => {
+    const b = document.createElement("button");
+    b.className = "tnode" + (n.id === "eternal" ? " capstone" : "") + (n.id === "root" ? " rootnode" : "");
+    b.style.left = `${n.x}%`;
+    b.style.top = `${n.y}%`;
+    b.innerHTML = `<span class="disc">${img(n.icon)}<span class="tcost">${n.cost}</span><span class="tcheck">✓</span></span><span class="tname">${esc(n.name)}</span>`;
+    b.setAttribute("aria-label", `${n.name}: costs ${n.cost} Political Capital`);
+    b.addEventListener("click", () => buyNode(n));
+    attachTooltip(b, () => {
+      const owned = perk(n.id);
+      const req = n.parents.length ? `<div class="tt-line">Requires: ${n.parents.map((id) => TREE_BY_ID[id].name).join(", ")}</div>` : "";
+      return `<div class="tt-head">${img(n.icon, "tt-ico")}<div><div class="tt-title">${n.name}</div><div class="tt-sub">${n.branch ? `${n.branch} branch` : "Legacy Tree"}</div></div></div>
+        <div>${n.desc}</div>${owned ? "" : req}
+        <div class="tt-cost ${owned || (state.pc >= n.cost && parentsOwned(n)) ? "" : "no"}">${owned ? "Unlocked" : `${n.cost} Political Capital (you have ${fmt(state.pc)})`}</div>`;
+    });
+    box.appendChild(b);
+    treeEls[n.id] = b;
+  });
+}
+function renderTree() {
+  $("pc-avail").textContent = fmt(state.pc || 0);
+  $("pc-knesset").textContent = fmt(state.pc || 0);
+  let anyAffordable = false;
+  TREE.forEach((n) => {
+    const owned = perk(n.id), open = !owned && parentsOwned(n), afford = open && state.pc >= n.cost;
+    if (afford) anyAffordable = true;
+    const el = treeEls[n.id];
+    el.classList.toggle("owned", owned);
+    el.classList.toggle("open", open);
+    el.classList.toggle("afford", afford);
+    el.classList.toggle("locked", !owned && !open);
+  });
+  $("tree-lines").querySelectorAll("line").forEach((l) => {
+    l.classList.toggle("on", perk(l.dataset.from) && perk(l.dataset.to));
+    l.classList.toggle("next", perk(l.dataset.from) && !perk(l.dataset.to));
+  });
+  $("legacy-dot").classList.toggle("hidden", !anyAffordable);
+}
+function buyNode(n) {
+  unlockAudio();
+  if (perk(n.id) || !parentsOwned(n) || state.pc < n.cost) return sfx.denied();
+  state.pc -= n.cost;
+  state.tree.push(n.id);
+  sfx.upgrade();
+  if (n.id === "eternal") { sfx.election(); confetti(160); }
+  toast(`Legacy: ${n.name}`, n.desc.replace(/<[^>]+>/g, ""), n.icon, "gold");
+  recalc();
+  renderTree();
+  refreshTooltip();
+  checkAchievements();
+  save();
+}
+function respecTree() {
+  const spent = (state.tree || []).reduce((a, id) => a + TREE_BY_ID[id].cost, 0);
+  if (!spent) return toast("Nothing to refund", "You haven't unlocked any Legacy nodes yet.", "crown");
+  showModal({
+    icon: "crown", title: "Refund the Legacy Tree?",
+    body: `<p>You'll get back all <b>${fmt(spent)}</b> Political Capital and can spend it again however you like. It's free.</p>`,
+    actions: [
+      { label: "Refund everything", cls: "btn-primary", onClick: () => {
+        state.pc += spent; state.tree = []; recalc(); renderTree(); save();
+        toast("Points refunded", `${fmt(spent)} Political Capital is ready to spend again.`, "crown");
+      } },
+      { label: "Keep my tree" },
+    ],
+  });
 }
 
 // ======================================================================
@@ -775,7 +880,8 @@ function renderStats() {
     ["Cabinet Decisions", fmt(state.decisions)],
     ["Breaking News clicked", fmt(state.newsClicked)],
     ["Elections called", fmt(state.elections)],
-    ["Knesset seats", `${fmt(state.seats)} (+${fmt(state.seats * SEAT_BONUS * 100)}%)`],
+    ["Knesset seats", `${fmt(state.seats)} (+${fmt(state.seats * seatBonus() * 100)}%)`],
+    ["Political Capital", `${fmt(state.pc || 0)} to spend · ${(state.tree || []).length}/${TREE.length} nodes`],
     ["Awards", `${state.achievements.length} (+${state.achievements.length}%)`],
     ["Offline production", `${Math.round(offlineRate() * 100)}%`],
     ["This term", fmtTime((now - state.termStart) / 1000)],
@@ -872,7 +978,8 @@ function nextHeadline() {
     ? unlocked[unlocked.length - 1 - Math.floor(Math.random() * Math.min(3, unlocked.length))]
     : pool[Math.floor(Math.random() * pool.length)];
   const extra = themeObj().headlines;
-  if (extra && extra.length && Math.random() < (currentTheme() === "pride" ? 0.5 : 0.3)) pick = extra[Math.floor(Math.random() * extra.length)];
+  const chance = themeObj().headlineChance ?? (currentTheme() === "pride" ? 0.5 : 0.3);
+  if (extra && extra.length && Math.random() < chance) pick = extra[Math.floor(Math.random() * extra.length)];
   if (pick === lastHeadline) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
   lastHeadline = pick;
   el.textContent = pick;
@@ -901,6 +1008,9 @@ function deserialize(str) {
   s.achievements = (data.achievements || []).filter((id) => ACH_BY_ID[id]);
   s.opts = Object.assign(freshState().opts, data.opts || {});
   s.rally = Object.assign(freshState().rally, data.rally || {});
+  // saves from before the Legacy Tree: existing seats become Political Capital
+  if (data.pc === undefined) s.pc = s.seats || 0;
+  s.tree = (data.tree || []).filter((id) => TREE_BY_ID[id]);
   s.buffs = (data.buffs || []).filter((b) => b.until > Date.now());
   s.history = Array.isArray(data.history) ? data.history.slice(-240) : [];
   s.version = 2;
@@ -1048,7 +1158,7 @@ darkMQ.addEventListener("change", () => { if ((state.opts.theme || "auto") === "
 // Rendering all
 // ======================================================================
 function renderAll() {
-  renderBank(); renderBuildings(); renderUpgrades(); renderAchievements(); renderKnesset(); renderStats();
+  renderBank(); renderBuildings(); renderUpgrades(); renderAchievements(); renderKnesset(); renderTree(); renderStats();
   updateMapEmpty();
   $("opt-particles").checked = state.opts.particles;
   $("opt-ticker").checked = state.opts.ticker;
@@ -1103,6 +1213,7 @@ function frame(now) {
     refreshTooltip();
     if (ui.tab === "stats") renderStats();
     if (ui.tab === "knesset") renderKnesset();
+    renderTree();
   }
   histAcc += dt;
   if (histAcc >= 5) {
@@ -1174,7 +1285,8 @@ function setTab(tab) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === tab));
   document.querySelectorAll(".tab-body").forEach((b) => b.classList.toggle("hidden", b.id !== `tab-${tab}`));
   if (tab === "stats") renderStats();
-  if (tab === "knesset") renderKnesset();
+  if (tab === "knesset") { renderKnesset(); renderTree(); }
+  if (tab === "legacy") renderTree();
   if (tab === "achievements") renderAchievements();
   syncMapActive();
 }
@@ -1190,6 +1302,7 @@ function init() {
   buildStore();
   buildAchievements();
   buildHemicycle();
+  buildTree();
   const loaded = load();
   setSoundEnabled(state.opts.sound);
   recalc();
@@ -1225,6 +1338,8 @@ function init() {
 
   els.decisionBtn.addEventListener("click", openDecision);
   els.btnElection.addEventListener("click", callElection);
+  $("btn-open-tree").addEventListener("click", () => setTab("legacy"));
+  $("btn-respec").addEventListener("click", respecTree);
   $("btn-map-rotate").addEventListener("click", (e) => { if (map) e.target.textContent = `Auto-rotate: ${map.toggleRotate() ? "on" : "off"}`; });
   $("btn-map-reset").addEventListener("click", () => { if (map) { map.resetView(); $("btn-map-rotate").textContent = "Auto-rotate: on"; } });
 

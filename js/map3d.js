@@ -371,6 +371,36 @@ export function createMap(canvas, { buildings, onHover }) {
     }
   }
 
+  // pennant bunting strung from the flagpole across the plaza
+  const bunting = new THREE.Group();
+  const pennantGeo = new THREE.BufferGeometry();
+  pennantGeo.setAttribute("position", new THREE.Float32BufferAttribute([-0.13, 0, 0, 0.13, 0, 0, 0, -0.3, 0], 3));
+  pennantGeo.computeVertexNormals();
+  const PENNANT_COLORS = ["#e31b23", "#f5b800", "#00853f"];
+  const pennantMats = PENNANT_COLORS.map((c) => new THREE.MeshStandardMaterial({ color: c, side: THREE.DoubleSide, roughness: 0.7 }));
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * TAU + 0.5;
+    const end = new THREE.Vector3(Math.cos(a) * 3.55, 1.25, Math.sin(a) * 3.55);
+    const start = new THREE.Vector3(0, 4.6, 0);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.3, 8), mat(C.woodLight));
+    post.position.set(end.x, 0.65, end.z);
+    bunting.add(post);
+    const curve = new THREE.QuadraticBezierCurve3(start, start.clone().lerp(end, 0.5).add(new THREE.Vector3(0, -0.9, 0)), end);
+    const line = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, 0.012, 4), mat("#3a2a1a"));
+    bunting.add(line);
+    const n = 11;
+    for (let i = 1; i < n; i++) {
+      const p = curve.getPoint(i / n);
+      const flag = new THREE.Mesh(pennantGeo, pennantMats[(i + k) % 3]);
+      flag.position.copy(p);
+      flag.lookAt(0, p.y, 0);
+      flag.rotation.y += Math.PI / 2;
+      flag.userData.sway = i * 0.7 + k;
+      bunting.add(flag);
+    }
+  }
+  scene.add(bunting);
+
   // th: a theme object from themes.js
   let extraSet = new Set();
   function setTheme(th) {
@@ -389,7 +419,7 @@ export function createMap(canvas, { buildings, onHover }) {
     const on = (k) => extraSet.has(k);
     stars.visible = on("stars"); moon.visible = on("moon"); rainbow.visible = on("rainbow");
     sea.visible = on("sea"); dunes.visible = on("dunes"); walls.visible = on("walls"); flowers.visible = on("flowers");
-    grid.visible = on("grid"); snow.visible = on("snow"); menorah.visible = on("menorah"); beams.visible = on("spotlights");
+    grid.visible = on("grid"); snow.visible = on("snow"); bunting.visible = on("bunting"); menorah.visible = on("menorah"); beams.visible = on("spotlights");
     lamps.forEach((l) => { l.intensity = on("lamps") ? 6 : 0; });
     menorahLight.intensity = on("menorah") ? 9 : 0;
     themeFireworks = on("fireworks");
@@ -693,6 +723,7 @@ export function createMap(canvas, { buildings, onHover }) {
       snowGeo.attributes.position.needsUpdate = true;
     }
     if (menorah.visible) animateModel(menorah, t, dt);
+    if (bunting.visible) bunting.children.forEach((f) => { if (f.userData.sway !== undefined) f.rotation.x = Math.sin(t * 2.2 + f.userData.sway) * 0.35; });
     if (beams.visible) beams.children.forEach((p) => { p.rotation.set(Math.sin(t * 0.5 + p.userData.phase) * 0.35, 0, Math.cos(t * 0.4 + p.userData.phase) * 0.35); });
     updateFireworks(dt, now);
     if (hoverDirty) doHover();

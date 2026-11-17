@@ -229,9 +229,9 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
 .tabs { display: flex; gap: 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; background: var(--track); padding: 4px; border-radius: 14px; }
 .tab {
   flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  border: 0; background: transparent; padding: 6px 8px; border-radius: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; font-size: 0.92rem;
+  border: 0; background: transparent; padding: 6px 6px; border-radius: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; font-size: 0.84rem; gap: 4px;
 }
-.tab img { width: 24px; height: 24px; }
+.tab img { width: 21px; height: 21px; }
 .tab:hover { color: var(--ink); background: var(--surface-hover); }
 .tab.active { background: var(--surface-solid); color: var(--accent); box-shadow: 0 2px 8px rgba(0, 30, 110, 0.12); }
 .tab-body { min-height: 0; }
@@ -270,6 +270,52 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
 .minister.on { background: var(--surface-solid); border-color: rgba(0, 56, 184, 0.3); }
 .minister.on img { filter: none; opacity: 1; }
 .minister.on .minister-seats { color: var(--good); }
+
+/* ---------- legacy tree ---------- */
+.tab { position: relative; }
+.tab-dot { position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 2px var(--surface-solid); }
+.legacy-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 4px; }
+.pc-box { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 14px 6px 6px; }
+.pc-box img { width: 44px; height: 44px; }
+.pc-box b { display: block; font-size: 1.5rem; font-weight: 900; color: var(--accent); line-height: 1; }
+.pc-box span { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+.tree { position: relative; width: 100%; max-width: 600px; margin: 18px auto 8px; aspect-ratio: 1 / 1.08; }
+.tree-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tree-lines line { stroke: var(--seat-empty); stroke-width: 4px; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.tree-lines line.next { stroke: var(--accent); stroke-dasharray: 6 6; opacity: 0.7; }
+.tree-lines line.on { stroke: var(--gold); stroke-width: 5px; }
+.tbranch { position: absolute; top: 79%; transform: translateX(-50%); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; pointer-events: none; }
+.tnode { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; border: 0; background: none; padding: 0; width: 88px; z-index: 1; }
+.tnode .disc {
+  position: relative; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--upg-bg); border: 3px solid var(--seat-empty); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.12s, border-color 0.2s, box-shadow 0.2s;
+}
+.tnode .disc img { width: 46px; height: 46px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2)); }
+.tnode .tname { margin-top: 4px; font-size: 0.7rem; font-weight: 700; line-height: 1.1; text-align: center; color: var(--ink); text-shadow: 0 1px 0 var(--text-glow); }
+.tcost { position: absolute; top: -7px; right: -9px; min-width: 22px; padding: 1px 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.7rem; font-weight: 900; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
+.tcheck { display: none; position: absolute; bottom: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; background: var(--good); color: #fff; font-size: 0.75rem; font-weight: 900; place-items: center; }
+.tnode.locked .disc img { filter: grayscale(1); opacity: 0.4; }
+.tnode.locked .tcost { background: var(--seat-empty); color: var(--muted); }
+.tnode.open .disc { border-color: var(--accent); }
+.tnode.afford .disc { animation: treePulse 1.6s ease-in-out infinite; }
+.tnode.afford:hover .disc { transform: scale(1.08); }
+.tnode.owned .disc { border-color: var(--gold); background: radial-gradient(circle at 50% 35%, #fff6cf, #f2c33d); box-shadow: 0 0 0 4px rgba(242, 183, 5, 0.25), 0 6px 16px rgba(201, 143, 0, 0.35); }
+.tnode.owned .tcost { display: none; }
+.tnode.owned .tcheck { display: grid; }
+.tnode.capstone .disc { width: 74px; height: 74px; }
+.tnode.capstone .disc img { width: 60px; height: 60px; }
+.tnode.rootnode .disc { width: 66px; height: 66px; }
+@keyframes treePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(22, 138, 72, 0.5); } 50% { box-shadow: 0 0 0 9px rgba(22, 138, 72, 0); } }
+@media (max-width: 520px) {
+  .tnode { width: 70px; }
+  .tnode .disc { width: 46px; height: 46px; }
+  .tnode .disc img { width: 36px; height: 36px; }
+  .tnode.capstone .disc, .tnode.rootnode .disc { width: 56px; height: 56px; }
+  .tnode .tname { font-size: 0.6rem; }
+  .tbranch { font-size: 0.56rem; }
+  .tree { margin: 34px auto 30px; }
+}
 
 /* ---------- stats ---------- */
 .graph-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; }
@@ -493,6 +539,16 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
 :root[data-theme="neon"] .panel, :root[data-theme="neon"] .topbar { box-shadow: 0 0 0 1px rgba(255, 79, 216, 0.35), 0 0 30px rgba(255, 79, 216, 0.18); }
 :root[data-theme="neon"] .hemicycle circle.held { fill: #ff4fd8; }
 :root[data-theme="neon"] .float-num { color: #22d3ee; text-shadow: 0 0 8px #22d3ee; }
+/* Black History Month: gold on black, Pan-African accents */
+:root[data-theme="bhm"] .brand-name { color: #f5b800; }
+:root[data-theme="bhm"] .bank-votes { text-shadow: 0 4px 24px rgba(245, 184, 0, 0.35); }
+:root[data-theme="bhm"] .hemicycle circle.held { fill: #f5b800; }
+:root[data-theme="bhm"] .topbar::after, :root[data-theme="bhm"] .panel::before {
+  content: ""; position: absolute; left: 18px; right: 18px; height: 4px; background: linear-gradient(90deg, #e31b23 0 33%, #f5b800 33% 66%, #00853f 66%);
+}
+:root[data-theme="bhm"] .topbar::after { bottom: 3px; border-radius: 4px; }
+:root[data-theme="bhm"] .panel::before { top: 0; border-radius: 0 0 4px 4px; }
+:root[data-theme="bhm"] .ticker-label { background: linear-gradient(90deg, #e31b23, #a3141a); }
 /* Festival of Lights / Election Night accents */
 :root[data-theme="hanukkah"] .hemicycle circle.held { fill: #fcd34d; }
 :root[data-theme="election"] .hemicycle circle.held { fill: #facc15; }
