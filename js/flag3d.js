@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { drawThemeFlag } from "./models.js";
 
-export function createFlagBackground(canvas, { animate = true, theme = "light" } = {}) {
+export function createFlagBackground(canvas, { animate = true, theme = null } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -16,16 +16,16 @@ export function createFlagBackground(canvas, { animate = true, theme = "light" }
   const W = 4.4, H = 3.2;
   const c = document.createElement("canvas");
   c.width = 1600; c.height = Math.round(1600 * (H / W));
-  function paint(th) {
+  function paint(flagSpec) {
     const ctx = c.getContext("2d");
     ctx.globalAlpha = 1;
-    drawThemeFlag(ctx, c.width, c.height, th);
+    drawThemeFlag(ctx, c.width, c.height, flagSpec);
     // subtle fabric weave
     ctx.globalAlpha = 0.035;
     for (let y = 0; y < c.height; y += 3) { ctx.fillStyle = y % 6 ? "#000" : "#fff"; ctx.fillRect(0, y, c.width, 1); }
     ctx.globalAlpha = 1;
   }
-  paint(theme);
+  paint(theme && theme.flag);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -44,16 +44,13 @@ export function createFlagBackground(canvas, { animate = true, theme = "light" }
   fill.position.set(4, -2, 3);
   scene.add(fill);
 
-  const LOOKS = {
-    light: { bg: "#dfe7f7", amb: 0.75, sun: 2.4, sunC: "#ffffff", fill: 0.8, exp: 1.15 },
-    dark: { bg: "#060b1c", amb: 0.16, sun: 0.85, sunC: "#a9bcff", fill: 0.3, exp: 0.8 },
-    pride: { bg: "#f3e8ff", amb: 0.8, sun: 2.2, sunC: "#fff6ea", fill: 0.7, exp: 1.05 },
-  };
+  // th: a theme object from themes.js
   function setTheme(th) {
-    const L = LOOKS[th] || LOOKS.light;
-    paint(th);
+    if (!th) return;
+    const L = th.bg;
+    paint(th.flag);
     tex.needsUpdate = true;
-    scene.background.set(L.bg);
+    scene.background.set(L.color);
     ambient.intensity = L.amb;
     sun.intensity = L.sun;
     sun.color.set(L.sunC);

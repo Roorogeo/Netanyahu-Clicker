@@ -1,8 +1,9 @@
 // Bibi Clicker: game state, economy, UI and the glue to the 3D scenes.
 import {
   BUILDINGS, BLD_BY_ID, UPGRADES, UPG_BY_ID, MINISTERS, ACHIEVEMENTS, ACH_BY_ID,
-  NEWS_EFFECTS, DECISIONS, HEADLINES, PRIDE_HEADLINES, SEATS_TOTAL,
+  NEWS_EFFECTS, DECISIONS, HEADLINES, SEATS_TOTAL,
 } from "./data.js";
+import { THEMES, THEME_BY_ID } from "./themes.js";
 import { sfx, setSoundEnabled, unlockAudio } from "./audio.js";
 
 const SAVE_KEY = "bibiClickerSave.v1";
@@ -258,9 +259,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !els.mod
 
 // ---------- confetti ----------
 function confetti(n = 120) {
-  const colors = currentTheme() === "pride"
-    ? ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"]
-    : ["#0038b8", "#ffffff", "#f2b705", "#7fa6f5"];
+  const colors = themeObj().confetti;
   for (let i = 0; i < n; i++) {
     const p = document.createElement("i");
     p.style.left = `${Math.random() * 100}vw`;
@@ -423,16 +422,20 @@ function upgradeTooltip(u) {
   return `<div class="tt-head">${img(u.icon, "tt-ico")}<div><div class="tt-title">${u.name}</div><div class="tt-sub">Upgrade</div></div></div>
     <div>${u.desc}</div>
     <div class="tt-cost ${state.votes >= c ? "" : "no"}">${fmtBig(c)} votes</div>
+    ${visualNote(u) ? `<div class="tt-visual">3D: ${visualNote(u)}</div>` : ""}
     ${u.flavor ? `<div class="tt-flavor">${u.flavor}</div>` : ""}`;
 }
 function buyUpgrade(u) {
   unlockAudio();
   const c = upgradeCost(u);
   if (has(u.id) || state.votes < c) return sfx.denied();
+  const before = upgradeLook();
   state.votes -= c;
   state.upgrades.push(u.id);
   sfx.upgrade();
   recalc();
+  applyUpgradeLook();
+  announceLook(u, before);
   hideTooltip();
   renderUpgrades();
 }
@@ -465,6 +468,7 @@ function startRally() {
   state.rallies++;
   sfx.rally();
   badge && badge.setRally(true);
+  map && map.setRally(true);
   badge && badge.burst(40);
   els.rally.classList.add("active");
   toast("RALLY!", `Clicks ×${RALLY_CLICK_MULT} and production ×${RALLY_VPS_MULT} for ${Math.round(dur)} seconds!`, "megaphone", "gold");
@@ -482,6 +486,7 @@ function updateRally(dt) {
     if (els.rally.classList.contains("active")) {
       els.rally.classList.remove("active");
       badge && badge.setRally(false);
+      map && map.setRally(false);
       state.rally.cooldownUntil = now + 15000;
       state.rally.energy = 0;
       recalc();
@@ -795,13 +800,17 @@ function drawGraph() {
   const css = getComputedStyle(document.documentElement);
   const accent = css.getPropertyValue("--accent").trim() || "#0038b8";
   const pride = currentTheme() === "pride";
+  const darkTone = themeObj().tone === "dark";
   ctx.strokeStyle = css.getPropertyValue("--line").trim() || "rgba(15,26,51,0.08)"; ctx.lineWidth = 1;
   for (let k = 0; k <= 3; k++) { const yy = pad.t + (k / 3) * (h - pad.t - pad.b); ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(w - pad.r, yy); ctx.stroke(); }
   const off = 240 - data.length;
   const grd = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
   if (pride) { grd.addColorStop(0, "rgba(255,140,0,0.3)"); grd.addColorStop(0.5, "rgba(0,77,255,0.15)"); grd.addColorStop(1, "rgba(117,7,135,0)"); }
-  else if (currentTheme() === "dark") { grd.addColorStop(0, "rgba(127,166,255,0.35)"); grd.addColorStop(1, "rgba(127,166,255,0)"); }
-  else { grd.addColorStop(0, "rgba(0,56,184,0.35)"); grd.addColorStop(1, "rgba(0,56,184,0)"); }
+  else {
+    const c = new Color(accent);
+    grd.addColorStop(0, `rgba(${c.r},${c.g},${c.b},${darkTone ? 0.4 : 0.35})`);
+    grd.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0)`);
+  }
   ctx.beginPath();
   ctx.moveTo(x(off), h - pad.b);
   data.forEach((v, i) => ctx.lineTo(x(off + i), y(v)));
@@ -862,7 +871,8 @@ function nextHeadline() {
   let pick = Math.random() < 0.45 && unlocked.length
     ? unlocked[unlocked.length - 1 - Math.floor(Math.random() * Math.min(3, unlocked.length))]
     : pool[Math.floor(Math.random() * pool.length)];
-  if (currentTheme() === "pride" && Math.random() < 0.5) pick = PRIDE_HEADLINES[Math.floor(Math.random() * PRIDE_HEADLINES.length)];
+  const extra = themeObj().headlines;
+  if (extra && extra.length && Math.random() < (currentTheme() === "pride" ? 0.5 : 0.3)) pick = extra[Math.floor(Math.random() * extra.length)];
   if (pick === lastHeadline) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
   lastHeadline = pick;
   el.textContent = pick;
@@ -927,35 +937,110 @@ function applyOffline() {
 }
 
 // ======================================================================
-// Themes: auto (follows the device), light, dark, pride
+// Themes (see themes.js). "auto" follows the device's light/dark setting.
 // ======================================================================
 const darkMQ = window.matchMedia("(prefers-color-scheme: dark)");
-const THEMES = ["light", "dark", "pride"];
-const THEME_META = { light: "#0038b8", dark: "#060b1c", pride: "#6a1b9a" };
-const THEME_ICONS = {
-  light: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>`,
-  dark: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/><circle cx="17" cy="5" r="1" fill="currentColor"/><circle cx="20" cy="9" r="0.8" fill="currentColor"/></svg>`,
-  pride: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2.2" stroke-linecap="round">${["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"].map((c, i) => `<path d="M${2 + i * 1.5} 19a${10 - i * 1.5} ${10 - i * 1.5} 0 0 1 ${20 - i * 3} 0" stroke="${c}"/>`).join("")}</svg>`,
-};
+function Color(hex) { // tiny hex -> {r,g,b} helper for canvas gradients
+  const h = (hex || "#0038b8").replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h.slice(0, 6), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
 function currentTheme() {
   const t = state.opts.theme || "auto";
-  return t === "auto" ? (darkMQ.matches ? "dark" : "light") : t;
+  if (t === "auto" || !THEME_BY_ID[t]) return darkMQ.matches ? "dark" : "light";
+  return t;
+}
+const themeObj = () => THEME_BY_ID[currentTheme()];
+let appliedVars = [];
+function swatchHTML(colors) {
+  return `<span class="swatch">${colors.map((c) => `<i style="background:${c}"></i>`).join("")}</span>`;
+}
+function themeCards() {
+  const auto = `<button class="theme-card" data-v="auto">${swatchHTML(["#ffffff", "#0038b8", "#060b1c"])}<span>Auto</span></button>`;
+  return auto + THEMES.map((t) => `<button class="theme-card" data-v="${t.id}">${swatchHTML(t.swatch)}<span>${esc(t.name)}</span></button>`).join("");
 }
 function applyTheme() {
-  const th = currentTheme();
-  document.documentElement.dataset.theme = th;
+  const th = themeObj();
+  const root = document.documentElement;
+  root.dataset.theme = th.id;
+  root.dataset.tone = th.tone;
+  appliedVars.forEach((k) => root.style.removeProperty(k));
+  appliedVars = Object.keys(th.vars);
+  for (const [k, v] of Object.entries(th.vars)) root.style.setProperty(k, v);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = THEME_META[th];
+  if (meta) meta.content = th.meta;
   const btn = $("btn-theme");
-  const next = THEMES[(THEMES.indexOf(th) + 1) % THEMES.length];
-  btn.innerHTML = THEME_ICONS[th];
-  btn.setAttribute("aria-label", `Theme: ${th}. Switch to ${next}`);
-  btn.title = `Theme: ${th} (click for ${next})`;
-  document.querySelectorAll("#opt-theme button").forEach((b) => b.classList.toggle("active", b.dataset.v === (state.opts.theme || "auto")));
+  btn.innerHTML = swatchHTML(th.swatch);
+  btn.setAttribute("aria-label", `Theme: ${th.name}. Choose a theme`);
+  btn.title = `Theme: ${th.name}`;
+  const chosen = state.opts.theme && (state.opts.theme === "auto" || THEME_BY_ID[state.opts.theme]) ? state.opts.theme : "auto";
+  document.querySelectorAll(".theme-card").forEach((b) => b.classList.toggle("active", b.dataset.v === chosen));
   flagBg && flagBg.setTheme(th);
   badge && badge.setTheme(th);
   map && map.setTheme(th);
   if (ui.tab === "stats") drawGraph();
+}
+function setThemeChoice(v) {
+  const before = currentTheme();
+  state.opts.theme = v;
+  applyTheme();
+  if (currentTheme() !== before) confetti(50);
+  save();
+}
+function toggleThemePop(force) {
+  const pop = $("theme-pop");
+  const open = force !== undefined ? force : pop.classList.contains("hidden");
+  pop.classList.toggle("hidden", !open);
+  $("btn-theme").setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+// ======================================================================
+// Upgrades change the look of the 3D scenes
+// ======================================================================
+const MONUMENT_UPGRADES = /^(global_[0-7]|news_\d|rally_\d|decision_\d|offline_\d)$/;
+const METAL_NAMES = ["bronze", "silver", "silver", "gold", "gold", "platinum", "iridescent"];
+function upgradeLook() {
+  const look = { tiers: {}, click: 0, charisma: 0, globals: 0, synergies: [], monuments: [] };
+  for (const id of state.upgrades) {
+    const u = UPG_BY_ID[id];
+    if (!u) continue;
+    if (u.kind === "building") look.tiers[u.target] = (look.tiers[u.target] || 0) + 1;
+    else if (u.kind === "click") look.click++;
+    else if (u.kind === "clickVps") look.charisma++;
+    else if (u.kind === "global") look.globals++;
+    else if (u.kind === "synergy") look.synergies.push([u.source, u.target]);
+    if (MONUMENT_UPGRADES.test(id)) look.monuments.push(id);
+  }
+  look.goldHQ = has("global_8");
+  look.crown = has("global_9");
+  look.rallyFireworks = has("rally_1");
+  return look;
+}
+function applyUpgradeLook() {
+  const look = upgradeLook();
+  map && map.setUpgradeLook(look);
+  badge && badge.setUpgrades({ click: look.click, charisma: look.charisma, globals: look.globals, synergies: look.synergies.length });
+}
+function visualNote(u) {
+  if (u.kind === "building") return `Adds a ${u.frame} pedestal under every ${BLD_BY_ID[u.target].name} on your island.`;
+  if (u.kind === "click") return "Upgrades the metal of your campaign coin.";
+  if (u.kind === "clickVps") return "Adds a star orbiting your campaign coin.";
+  if (u.id === "global_8") return "Turns the HQ ballot box on your island to solid gold.";
+  if (u.id === "global_9") return "Puts a crown on top of the island's flagpole.";
+  if (u.kind === "global") return "Raises a monument in your plaza and grows the laurel wreath on your coin.";
+  if (u.kind === "synergy") return "Builds a glowing link between the two districts and sets a gem in your coin.";
+  if (u.id === "rally_1") return "Raises a monument, and fireworks light up the island during rallies.";
+  if (MONUMENT_UPGRADES.test(u.id)) return "Raises a monument in your plaza.";
+  return "";
+}
+function announceLook(u, before) {
+  if (MONUMENT_UPGRADES.test(u.id)) toast("New landmark!", `A ${u.name} monument now stands in your plaza.`, u.icon, "gold");
+  else if (u.id === "global_8") toast("Golden HQ!", "Your campaign HQ is now solid gold.", "ballot", "gold");
+  else if (u.id === "global_9") toast("Crowned!", "A crown now tops the flagpole on your island.", "crown", "gold");
+  else if (u.kind === "click") {
+    const m = METAL_NAMES[Math.min(6, upgradeLook().click)];
+    if (m !== METAL_NAMES[Math.min(6, before.click)]) toast("Coin upgraded!", `Your campaign coin now has a ${m} rim.`, u.icon, "gold");
+  }
 }
 darkMQ.addEventListener("change", () => { if ((state.opts.theme || "auto") === "auto") applyTheme(); });
 
@@ -972,6 +1057,7 @@ function renderAll() {
   document.querySelectorAll("#opt-numbers button").forEach((b) => b.classList.toggle("active", b.dataset.v === state.opts.numbers));
   updateSoundButton();
   applyTheme();
+  applyUpgradeLook();
 }
 function updateSoundButton() {
   const b = $("btn-sound");
@@ -1048,23 +1134,24 @@ async function init3D() {
   }
   try {
     const { createFlagBackground } = await import("./flag3d.js");
-    flagBg = createFlagBackground($("bg-flag"), { animate: state.opts.flag, theme: currentTheme() });
+    flagBg = createFlagBackground($("bg-flag"), { animate: state.opts.flag, theme: themeObj() });
     document.body.classList.add("has-flag3d");
   } catch (e) { console.warn("Flag background unavailable", e); }
   try {
     const { createBadge } = await import("./badge3d.js");
     badge = createBadge($("badge"), { photoUrl: "assets/bibi.jpg" });
     badge.setRally(rallyActive());
-    badge.setTheme(currentTheme());
+    badge.setTheme(themeObj());
   } catch (e) { console.warn("3D badge unavailable", e); useBadgeFallback(); }
   try {
     const { createMap } = await import("./map3d.js");
     map = createMap($("map"), { buildings: BUILDINGS, onHover: mapHover });
     map.update(state.buildings);
-    map.setTheme(currentTheme());
+    map.setTheme(themeObj());
     syncMapActive();
   } catch (e) { console.warn("3D map unavailable", e); $("map-fallback").classList.remove("hidden"); }
   updateMapEmpty();
+  applyUpgradeLook();
 }
 function mapHover(type, evt) {
   if (!type || !evt) { if (tooltipSource && tooltipSource.el === $("map")) hideTooltip(); return; }
@@ -1141,18 +1228,15 @@ function init() {
   $("btn-map-rotate").addEventListener("click", (e) => { if (map) e.target.textContent = `Auto-rotate: ${map.toggleRotate() ? "on" : "off"}`; });
   $("btn-map-reset").addEventListener("click", () => { if (map) { map.resetView(); $("btn-map-rotate").textContent = "Auto-rotate: on"; } });
 
-  $("btn-theme").addEventListener("click", () => {
-    const th = currentTheme();
-    state.opts.theme = THEMES[(THEMES.indexOf(th) + 1) % THEMES.length];
-    applyTheme();
-    if (state.opts.theme === "pride") confetti(60);
-    save();
-  });
-  document.querySelectorAll("#opt-theme button").forEach((b) => b.addEventListener("click", () => {
-    state.opts.theme = b.dataset.v;
-    applyTheme();
-    save();
+  $("opt-theme").innerHTML = themeCards();
+  $("theme-pop-grid").innerHTML = themeCards();
+  document.querySelectorAll(".theme-card").forEach((b) => b.addEventListener("click", () => {
+    setThemeChoice(b.dataset.v);
+    if (b.closest("#theme-pop")) toggleThemePop(false);
   }));
+  $("btn-theme").addEventListener("click", (e) => { e.stopPropagation(); toggleThemePop(); });
+  document.addEventListener("click", (e) => { if (!e.target.closest("#theme-pop") && !e.target.closest("#btn-theme")) toggleThemePop(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggleThemePop(false); });
   $("btn-sound").addEventListener("click", () => {
     state.opts.sound = !state.opts.sound;
     setSoundEnabled(state.opts.sound);

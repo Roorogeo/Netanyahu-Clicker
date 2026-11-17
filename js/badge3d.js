@@ -2,7 +2,7 @@
 // gold rim, and a shower of 3D ballots on every click.
 import * as THREE from "three";
 import { RoomEnvironment } from "../vendor/three/addons/RoomEnvironment.js";
-import { drawFlag, drawPrideFlag, drawStarOfDavid, PRIDE_COLORS } from "./models.js";
+import { drawFlag, drawPrideFlag, drawStarOfDavid, PRIDE_COLORS, makeModel } from "./models.js";
 
 const TAU = Math.PI * 2;
 
@@ -24,55 +24,56 @@ function drawRingText(ctx, text, cx, cy, r, font, color) {
   ctx.restore();
 }
 
-function frontCanvas(photo, theme = "light") {
+const rainbowAt = (i, n) => `hsl(${Math.round((i / n) * 360)}, 95%, 62%)`;
+const CLASSIC_COIN = { bg: ["#0a47d6", "#00248a"], text: "#ffffff", ring: "#ffffff" };
+
+// theme: a theme object from themes.js (or null for the classic look)
+function frontCanvas(photo, theme) {
+  const coin = (theme && theme.coin) || CLASSIC_COIN;
   const S = 1024, c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d");
   const g = ctx.createRadialGradient(S / 2, S / 2, S * 0.3, S / 2, S / 2, S / 2);
-  if (theme === "pride") { g.addColorStop(0, "#2a1a5e"); g.addColorStop(1, "#150b33"); }
-  else { g.addColorStop(0, "#0a47d6"); g.addColorStop(1, "#00248a"); }
+  g.addColorStop(0, coin.bg[0]); g.addColorStop(1, coin.bg[1]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
-  const ringColor = theme === "pride"
-    ? (i, n) => `hsl(${Math.round((i / n) * 360)}, 95%, 62%)`
-    : "#ffffff";
-  drawRingText(ctx, "★ VOTE BIBI ★ VOTE BIBI ★ VOTE BIBI ", S / 2, S / 2, S * 0.43, "900 64px Rubik, Arial Black, sans-serif", ringColor);
+  drawRingText(ctx, "★ VOTE BIBI ★ VOTE BIBI ★ VOTE BIBI ", S / 2, S / 2, S * 0.43,
+    "900 64px Rubik, Arial Black, sans-serif", coin.text === "rainbow" ? rainbowAt : coin.text);
   // photo disc
   ctx.save();
   ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36, 0, TAU); ctx.closePath();
   ctx.fillStyle = "#e8eefc"; ctx.fill();
   ctx.clip();
-  if (photo) {
-    ctx.drawImage(photo, S / 2 - S * 0.36, S / 2 - S * 0.36, S * 0.72, S * 0.72);
-  } else {
-    drawStarOfDavid(ctx, S / 2, S / 2, S * 0.22, 26, "#0038b8");
-  }
+  if (photo) ctx.drawImage(photo, S / 2 - S * 0.36, S / 2 - S * 0.36, S * 0.72, S * 0.72);
+  else drawStarOfDavid(ctx, S / 2, S / 2, S * 0.22, 26, "#0038b8");
   ctx.restore();
-  if (theme === "pride") {
+  if (coin.ring === "rainbow") {
     PRIDE_COLORS.forEach((col, i) => {
       ctx.lineWidth = 9; ctx.strokeStyle = col;
       ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36 + 4 + (i - 2.5) * 8, 0, TAU); ctx.stroke();
     });
   } else {
-    ctx.lineWidth = 14; ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 14; ctx.strokeStyle = coin.ring;
     ctx.beginPath(); ctx.arc(S / 2, S / 2, S * 0.36, 0, TAU); ctx.stroke();
   }
   return c;
 }
 
-function backCanvas(theme = "light") {
+function backCanvas(theme) {
   const S = 1024, c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d");
-  if (theme === "pride") {
+  const flag = theme && theme.flag;
+  if (flag && flag.type === "pride") {
     drawPrideFlag(ctx, S, S);
     ctx.fillStyle = "#ffffff"; ctx.font = "900 78px Rubik, Arial Black, sans-serif"; ctx.textAlign = "center";
     ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 10;
     ctx.fillText("PRIDE", S / 2, S * 0.9);
     return c;
   }
-  ctx.save(); ctx.translate(0, S * 0.14); drawFlag(ctx, S, S * 0.727); ctx.restore();
-  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, S, S * 0.14); ctx.fillRect(0, S * 0.86, S, S * 0.14);
-  ctx.fillStyle = "#0038b8"; ctx.font = "900 70px Rubik, Arial Black, sans-serif"; ctx.textAlign = "center";
+  const spec = flag || {};
+  ctx.fillStyle = spec.field || "#ffffff"; ctx.fillRect(0, 0, S, S);
+  ctx.save(); ctx.translate(0, S * 0.14); drawFlag(ctx, S, S * 0.727, spec); ctx.restore();
+  ctx.fillStyle = spec.stripe || "#0038b8"; ctx.font = "900 70px Rubik, Arial Black, sans-serif"; ctx.textAlign = "center";
   ctx.fillText("ISRAEL", S / 2, S * 0.92);
   return c;
 }
@@ -154,7 +155,73 @@ export function createBadge(canvas, { photoUrl }) {
   coin.add(gloss);
   scene.add(coin);
 
-  let photoOk = false, photoImg = null, theme = "light";
+  // ---- upgrade decorations ----
+  // Rim metal follows click upgrades: bronze -> silver -> gold -> platinum -> iridescent
+  const METALS = [
+    { color: "#b9733a", rough: 0.38 }, { color: "#d3d9e3", rough: 0.25 }, { color: "#d3d9e3", rough: 0.22 },
+    { color: "#f2b705", rough: 0.28 }, { color: "#f2b705", rough: 0.22 }, { color: "#e3eef6", rough: 0.14 },
+    { color: "iridescent", rough: 0.12 },
+  ];
+  let metalTier = 3;
+  function applyMetal() {
+    const m = METALS[Math.min(metalTier, METALS.length - 1)];
+    gold.roughness = m.rough;
+    if (m.color !== "iridescent") gold.color.set(m.color);
+  }
+  // Laurel wreath grows one pair of leaves per global upgrade
+  const laurel = new THREE.Group();
+  const leafGeo = new THREE.SphereGeometry(0.5, 12, 8);
+  const leafMat = new THREE.MeshStandardMaterial({ color: "#5f9a3a", metalness: 0.35, roughness: 0.4 });
+  const LEAVES = 10;
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < LEAVES; k++) {
+      const a = -Math.PI / 2 + side * (0.2 + k * 0.2);
+      const leaf = new THREE.Mesh(leafGeo, leafMat);
+      leaf.scale.set(0.26, 0.1, 0.04);
+      leaf.position.set(Math.cos(a) * 1.16, Math.sin(a) * 1.16, T / 2 + 0.03);
+      leaf.rotation.z = a + Math.PI / 2 + side * 0.5;
+      leaf.userData.k = k;
+      laurel.add(leaf);
+    }
+  }
+  coin.add(laurel);
+  // Gems on the top of the rim, one per synergy upgrade
+  const gems = new THREE.Group();
+  const GEM_COLORS = ["#3b82f6", "#10b981", "#ef4444", "#a855f7", "#f59e0b", "#06b6d4"];
+  GEM_COLORS.forEach((col, i) => {
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 0),
+      new THREE.MeshStandardMaterial({ color: col, metalness: 0.3, roughness: 0.08, emissive: col, emissiveIntensity: 0.35 }));
+    const a = Math.PI / 2 + (i - (GEM_COLORS.length - 1) / 2) * 0.26;
+    gem.position.set(Math.cos(a) * 0.985, Math.sin(a) * 0.985, T / 2 + 0.06);
+    gem.scale.set(1, 1, 0.6);
+    gems.add(gem);
+  });
+  coin.add(gems);
+  // Stars orbiting the coin, one per Charisma upgrade
+  const orbit = new THREE.Group();
+  ["star", "starSilver", "starBlue", "starRuby", "starPurple"].forEach((name) => {
+    const st = makeModel(name);
+    st.scale.setScalar(0.2);
+    st.visible = false;
+    orbit.add(st);
+  });
+  scene.add(orbit);
+  const look = { click: 3, charisma: 0, globals: 0, synergies: 0 };
+  function setUpgrades(l) {
+    Object.assign(look, l);
+    metalTier = look.click;
+    applyMetal();
+    const leavesPerSide = Math.min(LEAVES, look.globals * 1);
+    laurel.children.forEach((leaf) => { leaf.visible = leaf.userData.k < leavesPerSide; });
+    leafMat.color.set(look.globals >= 8 ? "#e2b23a" : "#5f9a3a");
+    leafMat.metalness = look.globals >= 8 ? 0.85 : 0.35;
+    gems.children.forEach((g, i) => { g.visible = i < look.synergies; });
+    const n = Math.min(5, look.charisma);
+    orbit.children.forEach((st, i) => { st.visible = i < n; });
+  }
+  setUpgrades(look);
+
+  let photoOk = false, photoImg = null, theme = null;
   if (photoUrl) {
     const img = new Image();
     img.onload = () => {
@@ -233,7 +300,7 @@ export function createBadge(canvas, { photoUrl }) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     // keep the coin a constant fraction of the smaller side
-    const fit = 2.75 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    const fit = 3.35 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     camera.position.z = camera.aspect < 1 ? fit / camera.aspect : fit;
     camera.updateProjectionMatrix();
   }
@@ -265,9 +332,18 @@ export function createBadge(canvas, { photoUrl }) {
     coin.position.y = Math.sin(t * 1.3) * 0.05;
 
     gold.emissive.setRGB(rally ? 0.35 + Math.sin(t * 10) * 0.15 : flash * 0.2, rally ? 0.2 : flash * 0.12, 0);
+    const haloC = theme && theme.coin ? theme.coin.halo : "#7fa6ff";
     if (rally) haloMat.color.set("#ffcf3f");
-    else if (theme === "pride") haloMat.color.setHSL((t * 0.12) % 1, 0.95, 0.62);
-    else haloMat.color.set(theme === "dark" ? "#4f7dff" : "#7fa6ff");
+    else if (haloC === "rainbow") haloMat.color.setHSL((t * 0.12) % 1, 0.95, 0.62);
+    else haloMat.color.set(haloC);
+    if (METALS[Math.min(metalTier, METALS.length - 1)].color === "iridescent") gold.color.setHSL((t * 0.08) % 1, 0.75, 0.78);
+    // orbiting charisma stars
+    const shown = orbit.children.filter((st) => st.visible);
+    shown.forEach((st, i) => {
+      const a = t * 0.7 + (i / shown.length) * TAU;
+      st.position.set(coin.position.x + Math.cos(a) * 1.42, coin.position.y + Math.sin(a) * 1.42 * 0.32 + 0.05, Math.sin(a) * 0.9);
+      st.rotation.y += dt * 2;
+    });
     haloMat.opacity = (rally ? 0.7 : 0.35) + Math.sin(t * 2) * 0.05 + flash * 0.2;
     halo.scale.setScalar((rally ? 2.7 : 2.45) + Math.sin(t * 2) * 0.05 + flash * 0.12);
     if (rally && Math.random() < dt * 14) spawn(1);
@@ -307,6 +383,7 @@ export function createBadge(canvas, { photoUrl }) {
       backTex.image = backCanvas(th);
       backTex.needsUpdate = true;
     },
+    setUpgrades,
     get photoLoaded() { return photoOk; },
     resize,
   };

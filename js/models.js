@@ -79,12 +79,17 @@ export function drawStarOfDavid(ctx, cx, cy, r, lw, color) {
   ctx.restore();
 }
 
-export function drawFlag(ctx, w, h) {
-  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = C.blue;
+export function drawFlag(ctx, w, h, spec = {}) {
+  const { field = "#ffffff", stripe = C.blue, star = C.blue, glow = false } = spec;
+  ctx.save();
+  ctx.fillStyle = field; ctx.fillRect(0, 0, w, h);
+  if (glow) { ctx.shadowColor = stripe; ctx.shadowBlur = h * 0.06; }
+  ctx.fillStyle = stripe;
   ctx.fillRect(0, h * 0.09375, w, h * 0.15625);
   ctx.fillRect(0, h * 0.75, w, h * 0.15625);
-  drawStarOfDavid(ctx, w / 2, h / 2, h * 0.19, h * 0.034, C.blue);
+  if (glow) ctx.shadowColor = star;
+  drawStarOfDavid(ctx, w / 2, h / 2, h * 0.19, h * 0.034, star);
+  ctx.restore();
 }
 export const PRIDE_COLORS = ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"];
 
@@ -100,13 +105,15 @@ export function drawPrideFlag(ctx, w, h) {
   drawStarOfDavid(ctx, w / 2, h / 2, h * 0.21, h * 0.04, "#ffffff");
   ctx.restore();
 }
-export function drawThemeFlag(ctx, w, h, theme) {
+// spec: "pride" | { type: "pride" } | { field, stripe, star, glow } | undefined (classic)
+export function drawThemeFlag(ctx, w, h, spec) {
   ctx.clearRect(0, 0, w, h);
-  (theme === "pride" ? drawPrideFlag : drawFlag)(ctx, w, h);
+  if (spec === "pride" || (spec && spec.type === "pride")) drawPrideFlag(ctx, w, h);
+  else drawFlag(ctx, w, h, typeof spec === "object" ? spec : {});
 }
 
 // Flags on the 3D models share one texture; redraw it when the theme changes
-let flagTheme = "light";
+let flagTheme = undefined;
 const flagTex = () => canvasTex("flag", 512, 372, (ctx, w, h) => drawThemeFlag(ctx, w, h, flagTheme));
 export function setFlagTheme(theme) {
   flagTheme = theme;
