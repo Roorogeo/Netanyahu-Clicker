@@ -82,6 +82,11 @@
         <div class="rally-bar"><div class="rally-fill" id="rally-fill"></div></div>
       </div>
 
+      <div class="goals">
+        <div class="goals-head"><img src="assets/icons/scroll.png" alt="" width="24" height="24">Campaign Goals</div>
+        <div id="goal-list" class="goal-list"></div>
+      </div>
+
       <button id="decision-btn" class="decision-btn hidden">
         <img src="assets/icons/scroll.png" alt="" width="36" height="36">
         <span><b>Cabinet Decision!</b><small id="decision-timer"></small></span>
@@ -151,6 +156,19 @@
           <button id="btn-respec" class="btn">Refund all points (free)</button>
         </div>
         <div class="tree" id="tree"><svg class="tree-lines" id="tree-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+
+        <h3>Endless Mandates</h3>
+        <p class="muted small">Repeatable perks for Political Capital. Each level costs more than the last; some never stop.</p>
+        <div class="pcards" id="mandates"></div>
+
+        <h3>Eras</h3>
+        <p class="muted small">Fill the Knesset (120 seats) to begin a new Era. It resets seats, Political Capital, the Legacy Tree and Endless Mandates, and gives <b>Heritage</b>: every point ever earned adds <b>+10% production forever</b>, and you spend it on Era perks below.</p>
+        <div class="legacy-bar">
+          <div class="pc-box"><img src="assets/icons/crown.png" alt=""><div><b id="heritage-avail">0</b><span>Heritage to spend</span></div></div>
+          <div class="pc-box"><img src="assets/icons/bigbang.png" alt=""><div><b id="era-num">1</b><span>Current Era · <span id="heritage-bonus">+0%</span></span></div></div>
+        </div>
+        <button id="btn-era" class="btn btn-primary btn-big era-btn">Begin a new Era</button>
+        <div class="pcards" id="era-perks"></div>
       </div>
 
       <div class="tab-body hidden" id="tab-leaders">

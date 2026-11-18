@@ -2,6 +2,7 @@
 import {
   BUILDINGS, BLD_BY_ID, UPGRADES, UPG_BY_ID, MINISTERS, ACHIEVEMENTS, ACH_BY_ID,
   NEWS_EFFECTS, DECISIONS, HEADLINES, SEATS_TOTAL, TREE, TREE_BY_ID,
+  MANDATES, MANDATE_BY_ID, ERA_SEATS, ERA_PERKS, ERA_PERK_BY_ID,
 } from "./data.js";
 import { THEMES, THEME_BY_ID } from "./themes.js";
 import { writeSave, saveCandidates, listBackups, addBackup } from "./safety.js";
@@ -13,7 +14,7 @@ const SAVE_KEY = "bibiClickerSave.v1";
 const PRICE_GROWTH = 1.15;
 const SEAT_BONUS = 0.02;
 const ACH_BONUS = 0.01;
-const OFFLINE_CAP_S = 12 * 3600;
+const offlineCap = () => (minister("time") ? 24 : 12) * 3600;
 const ICON = (n) => `assets/icons/${n}.png`;
 const RALLY_CLICK_MULT = 7, RALLY_VPS_MULT = 2;
 
@@ -28,7 +29,10 @@ const freshState = () => ({
   buildings: Object.fromEntries(BUILDINGS.map((b) => [b.id, 0])),
   upgrades: [], achievements: [], buffs: [],
   rally: { energy: 0, until: 0, cooldownUntil: 0 },
-  pc: 0, tree: [], // Political Capital and Legacy Tree nodes (kept forever)
+  pc: 0, tree: [], // Political Capital and Legacy Tree nodes (kept across elections)
+  mandates: {}, // Endless Mandate levels (kept across elections)
+  lifetimeVotes: 0, era: 0, heritage: 0, heritageTotal: 0, eraPerks: [], // Eras (kept forever)
+  goals: [], goalsDone: 0, goalRerollAt: 0,
   history: [],
   termStart: Date.now(), gameStart: Date.now(), lastSave: Date.now(),
   opts: { particles: true, ticker: true, sound: true, flag: true, numbers: "short", theme: "auto" },
@@ -78,15 +82,18 @@ const rand = (a, b) => a + Math.random() * (b - a);
 // Economy
 // ======================================================================
 const has = (id) => state.upgrades.includes(id);
+const eraPerk = (id) => (state.eraPerks || []).includes(id);
+const mandate = (id) => (state.mandates || {})[id] || 0;
+const ministerSeats = (m) => (eraPerk("oldguard") ? Math.ceil(m.seats / 2) : m.seats);
 const minister = (id) => {
   const m = MINISTERS.find((x) => x.id === id);
-  return m && state.seats >= m.seats;
+  return m && state.seats >= ministerSeats(m);
 };
 const rallyActive = () => Date.now() < state.rally.until;
 
 const perk = (id) => (state.tree || []).includes(id);
 const seatBonus = () => (perk("dynasty") ? 0.03 : SEAT_BONUS);
-function buildingDiscount() { return (minister("transport") ? 0.95 : 1) * (perk("heroes") ? 0.9 : 1); }
+function buildingDiscount() { return (minister("transport") ? 0.95 : 1) * (perk("heroes") ? 0.9 : 1) * Math.pow(0.98, mandate("machine")); }
 function upgradeCost(u) { return Math.ceil(u.cost * (minister("science") ? 0.9 : 1) * (perk("seasoned") ? 0.85 : 1)); }
 function rallyDuration() { return (10 + (has("rally_1") ? 5 : 0) + (perk("encore") ? 10 : 0)) * (minister("culture") ? 1.5 : 1); }
 
@@ -123,6 +130,12 @@ function globalMultiplier() {
   if (perk("machine")) m *= 1 + 0.02 * BUILDINGS.filter((b) => state.buildings[b.id] > 0).length;
   if (perk("movement")) m *= 1.5;
   if (perk("eternal")) m *= 3;
+  if (minister("space")) m *= 2;
+  if (minister("everything")) m *= 3;
+  m *= 1 + 0.1 * mandate("majority");
+  m *= 1 + 0.1 * (state.heritageTotal || 0);
+  if (eraPerk("goldenage")) m *= 5;
+  if (eraPerk("legend")) m *= 10;
   return m;
 }
 function buffMult(key) {
@@ -159,6 +172,8 @@ function recalc() {
     if (u.kind === "clickVps") clickVpsFrac += u.value;
   }
   if (perk("orator")) click *= 3;
+  click *= 1 + 0.25 * mandate("speeches");
+  if (eraPerk("speechwriters")) click *= 10;
   if (perk("magnetic")) clickVpsFrac += 0.03;
   cache.clickPower = (click * Math.sqrt(g) + clickVpsFrac * cache.vps) * buffMult("clickMult") * (rallyActive() ? RALLY_CLICK_MULT : 1);
 }
@@ -167,11 +182,14 @@ function earn(n) {
   state.votes += n;
   state.totalVotes += n;
   state.allTimeVotes += n;
+  state.lifetimeVotes = (state.lifetimeVotes || 0) + n;
 }
 
-const seatsTotalFor = (allTime) => Math.floor(Math.sqrt(allTime / 1e9));
+const seatMult = () => (eraPerk("century") ? 2 : 1);
+const seatsTotalFor = (allTime) => Math.floor(Math.sqrt(allTime / 1e9)) * seatMult();
 const seatsGainable = () => Math.max(0, seatsTotalFor(state.allTimeVotes) - state.seats);
-const offlineRate = () => Math.min(1.25, 0.5 + (has("offline_0") ? 0.25 : 0) + (minister("tourism") ? 0.25 : 0) + (perk("nightowl") ? 0.25 : 0));
+const offlineRate = () => Math.min(2.25, 0.5 + (has("offline_0") ? 0.25 : 0) + (minister("tourism") ? 0.25 : 0) + (perk("nightowl") ? 0.25 : 0) + (eraPerk("mythic") ? 1 : 0));
+const mediaBoost = () => 1 + 0.2 * mandate("media");
 
 // ======================================================================
 // DOM helpers
@@ -372,7 +390,7 @@ function buildingTooltip(b) {
     ${costLine}
     ${nextTier ? `<div class="tt-flavor">Next upgrade unlocks at ${TIER_REQ(nextTier)} owned.</div>` : ""}`;
 }
-const TIER_REQ = (u) => [1, 5, 25, 50, 100, 150][Number(u.id.split("_t")[1])];
+const TIER_REQ = (u) => [1, 5, 25, 50, 100, 150, 200, 300][Number(u.id.split("_t")[1])];
 
 function storeAction(b) {
   unlockAudio();
@@ -471,7 +489,7 @@ function clickBibi(clientX, clientY) {
   // rally meter
   const now = Date.now();
   if (!rallyActive() && now >= state.rally.cooldownUntil) {
-    state.rally.energy = Math.min(100, state.rally.energy + 3 * (has("rally_0") ? 1.5 : 1) * (perk("surfer") ? 2 : 1));
+    state.rally.energy = Math.min(100, state.rally.energy + 3 * (has("rally_0") ? 1.5 : 1) * (perk("surfer") ? 2 : 1) * (eraPerk("flame") ? 3 : 1));
     if (state.rally.energy >= 100) startRally();
   }
 }
@@ -502,7 +520,7 @@ function updateRally(dt) {
       els.rally.classList.remove("active");
       badge && badge.setRally(false);
       map && map.setRally(false);
-      state.rally.cooldownUntil = now + 15000;
+      state.rally.cooldownUntil = now + (eraPerk("flame") ? 0 : 15000);
       state.rally.energy = 0;
       recalc();
     }
@@ -537,7 +555,7 @@ function spawnFloat(clientX, clientY, text) {
 let nextNewsAt = Date.now() + rand(40, 100) * 1000;
 let newsEl = null;
 function scheduleNews() {
-  let f = (has("news_0") ? 2 : 1) * (perk("spin") ? 1.5 : 1);
+  let f = (has("news_0") ? 2 : 1) * (perk("spin") ? 1.5 : 1) * (eraPerk("presscorps") ? 2 : 1);
   if (minister("comms")) f *= 1.3;
   nextNewsAt = Date.now() + (rand(60, 170) * 1000) / f;
 }
@@ -589,10 +607,10 @@ function collectNews() {
   state.newsClicked++;
   const eff = pickWeighted(NEWS_EFFECTS.map((e) => (e.id === "landslide" && perk("empire") ? { ...e, weight: e.weight * 3 } : e)));
   if (eff.buff) {
-    const dur = addBuff(eff.buff, (has("news_1") ? 2 : 1) * (perk("headline") ? 1.5 : 1));
+    const dur = addBuff(eff.buff, (has("news_1") ? 2 : 1) * (perk("headline") ? 1.5 : 1) * mediaBoost());
     toast(eff.title, eff.body.replace("{d}", Math.round(dur)), eff.buff.icon, "gold");
   } else {
-    const v = lumpVotes(eff.lump.vpsSeconds, eff.lump.bankFrac);
+    const v = lumpVotes(eff.lump.vpsSeconds * mediaBoost(), eff.lump.bankFrac * mediaBoost());
     toast(eff.title, eff.body.replace("{v}", fmtBig(v)), "newspaper", "gold");
   }
   sfx.upgrade();
@@ -606,7 +624,7 @@ function collectNews() {
 let nextDecisionAt = Date.now() + rand(150, 260) * 1000;
 let pendingDecision = null; // { d, expires }
 function scheduleDecision() {
-  nextDecisionAt = Date.now() + (rand(240, 460) * 1000) / (has("decision_0") ? 2 : 1);
+  nextDecisionAt = Date.now() + (rand(240, 460) * 1000) / ((has("decision_0") ? 2 : 1) * (eraPerk("presscorps") ? 2 : 1));
 }
 function offerDecision() {
   const pool = DECISIONS.filter((d) => !pendingDecision || d.id !== pendingDecision.d.id);
@@ -621,11 +639,11 @@ function applyEffect(e) {
     return { title: "No luck this time", body: e.lose, icon: "scroll" };
   }
   if (e.buff) {
-    const dur = addBuff(e.buff);
+    const dur = addBuff(e.buff, mediaBoost());
     return { title: e.buff.label, body: `Active for ${Math.round(dur)} seconds.`, icon: e.buff.icon };
   }
   if (e.lumpVps) {
-    const v = lumpVotes(e.lumpVps * (perk("kingmaker") ? 3 : 1));
+    const v = lumpVotes(e.lumpVps * (perk("kingmaker") ? 3 : 1) * mediaBoost());
     return { title: "Decision made", body: `+${fmtBig(v)} votes.`, icon: "ballot" };
   }
   return { title: "Done", body: "", icon: "scroll" };
@@ -686,21 +704,21 @@ function renderKnesset() {
   const gain = seatsGainable();
   els.seatsHeld.textContent = fmt(state.seats);
   els.seatsGain.textContent = `+${fmt(gain)}`;
-  const nextTotal = seatsTotalFor(state.allTimeVotes) + 1;
-  els.seatsNext.textContent = `Next seat after ${fmtBig(Math.max(0, nextTotal * nextTotal * 1e9 - state.allTimeVotes))} more votes (all time).`
+  const nextBase = Math.floor(Math.sqrt(state.allTimeVotes / 1e9)) + 1;
+  els.seatsNext.textContent = `Next ${seatMult() > 1 ? `${seatMult()} seats` : "seat"} after ${fmtBig(Math.max(0, nextBase * nextBase * 1e9 - state.allTimeVotes))} more votes (this Era).`
     + (state.seats >= 120 ? " The Knesset only has 120 seats, but who's counting?" : "");
   els.btnElection.disabled = gain < 1;
   els.btnElection.textContent = gain >= 1 ? `Call Early Elections (+${fmt(gain)} seats)` : "Not enough votes for a new seat yet";
   els.ministers.innerHTML = MINISTERS.map((m) => {
-    const on = state.seats >= m.seats;
+    const on = state.seats >= ministerSeats(m);
     return `<div class="minister ${on ? "on" : ""}">${img(m.icon)}<div><div class="minister-name">${m.name}</div>
-      <div class="minister-desc">${m.desc}</div></div><div class="minister-seats">${on ? "Appointed" : `${m.seats} seats`}</div></div>`;
+      <div class="minister-desc">${m.desc}</div></div><div class="minister-seats">${on ? "Appointed" : `${fmt(ministerSeats(m))} seats`}</div></div>`;
   }).join("");
 }
 function callElection() {
   const gain = seatsGainable();
   if (gain < 1) return;
-  const newMinisters = MINISTERS.filter((m) => state.seats < m.seats && state.seats + gain >= m.seats);
+  const newMinisters = MINISTERS.filter((m) => state.seats < ministerSeats(m) && state.seats + gain >= ministerSeats(m));
   showModal({
     icon: "chair",
     title: "Call early elections?",
@@ -716,13 +734,16 @@ function callElection() {
 function doElection(gain) {
   snapshot("Before calling an election");
   const keep = {
-    pc: (state.pc || 0) + gain, tree: state.tree || [],
+    pc: (state.pc || 0) + gain * (eraPerk("coalitionforever") ? 2 : 1), tree: state.tree || [], mandates: state.mandates || {},
+    lifetimeVotes: state.lifetimeVotes, era: state.era, heritage: state.heritage, heritageTotal: state.heritageTotal,
+    eraPerks: state.eraPerks, goalsDone: state.goalsDone,
     allTimeVotes: state.allTimeVotes, seats: state.seats + gain, elections: state.elections + 1,
     achievements: state.achievements, newsClicked: state.newsClicked, rallies: state.rallies,
     decisions: state.decisions, bestVps: state.bestVps, gameStart: state.gameStart, opts: state.opts,
   };
   state = Object.assign(freshState(), keep);
   if (minister("education")) { state.buildings.volunteer = 10; state.buildings.falafel = 5; }
+  applyTermStart();
   if (perk("headstart")) {
     state.buildings.volunteer = Math.max(state.buildings.volunteer, 25);
     state.buildings.falafel = Math.max(state.buildings.falafel, 10);
@@ -795,7 +816,11 @@ function renderTree() {
     l.classList.toggle("on", perk(l.dataset.from) && perk(l.dataset.to));
     l.classList.toggle("next", perk(l.dataset.from) && !perk(l.dataset.to));
   });
-  $("legacy-dot").classList.toggle("hidden", !anyAffordable);
+  renderMandates();
+  renderEra();
+  const anyMandate = MANDATES.some((m) => mandate(m.id) < m.max && state.pc >= mandateCost(m));
+  const anyPerk = ERA_PERKS.some((p) => !eraPerk(p.id) && (state.heritage || 0) >= p.cost);
+  $("legacy-dot").classList.toggle("hidden", !anyAffordable && !anyMandate && !anyPerk && eraGain() < 1);
 }
 function buyNode(n) {
   unlockAudio();
@@ -826,6 +851,261 @@ function respecTree() {
       { label: "Keep my tree" },
     ],
   });
+}
+
+// ======================================================================
+// Term start bonuses (Era perks and Endless Mandates)
+// ======================================================================
+function applyTermStart() {
+  if (eraPerk("veterans")) BUILDINGS.slice(0, 6).forEach((b) => { state.buildings[b.id] = Math.max(state.buildings[b.id], 5); });
+  const f = mandate("fund");
+  if (f > 0) state.votes += Math.pow(10, f + 2);
+}
+
+// ======================================================================
+// Endless Mandates (repeatable Political Capital perks)
+// ======================================================================
+const mandateCost = (m) => Math.round(m.base * Math.pow(m.growth, mandate(m.id)));
+const mandateEls = {};
+function buildMandates() {
+  const box = $("mandates");
+  box.innerHTML = "";
+  MANDATES.forEach((m) => {
+    const card = document.createElement("div");
+    card.className = "pcard";
+    card.innerHTML = `${img(m.icon, "pcard-ico")}<div class="pcard-main"><div class="pcard-name">${esc(m.name)} <span class="pcard-lvl"></span></div>
+      <div class="pcard-desc"></div></div><button class="btn pcard-buy"></button>`;
+    card.querySelector("button").addEventListener("click", () => buyMandate(m));
+    box.appendChild(card);
+    mandateEls[m.id] = { card, lvl: card.querySelector(".pcard-lvl"), desc: card.querySelector(".pcard-desc"), btn: card.querySelector("button") };
+  });
+}
+function renderMandates() {
+  MANDATES.forEach((m) => {
+    const e = mandateEls[m.id], l = mandate(m.id), maxed = l >= m.max, cost = mandateCost(m);
+    e.lvl.textContent = `Lv ${l}${m.max !== Infinity ? ` / ${m.max}` : ""}`;
+    e.desc.innerHTML = m.desc(l);
+    e.btn.textContent = maxed ? "Maxed" : `${fmt(cost)} PC`;
+    e.btn.disabled = maxed || state.pc < cost;
+    e.btn.classList.toggle("btn-primary", !maxed && state.pc >= cost);
+  });
+}
+function buyMandate(m) {
+  const cost = mandateCost(m);
+  if (mandate(m.id) >= m.max || state.pc < cost) return sfx.denied();
+  state.pc -= cost;
+  state.mandates[m.id] = mandate(m.id) + 1;
+  sfx.upgrade();
+  recalc(); renderTree(); checkAchievements(); save();
+  account && account.soon();
+}
+
+// ======================================================================
+// Eras (top prestige layer)
+// ======================================================================
+const eraGain = () => (state.seats >= ERA_SEATS ? Math.floor(Math.sqrt(state.seats / ERA_SEATS)) : 0);
+const perkEls = {};
+function buildEra() {
+  const box = $("era-perks");
+  box.innerHTML = "";
+  ERA_PERKS.forEach((p) => {
+    const card = document.createElement("div");
+    card.className = "pcard";
+    card.innerHTML = `${img(p.icon, "pcard-ico")}<div class="pcard-main"><div class="pcard-name">${esc(p.name)}</div><div class="pcard-desc">${p.desc}</div></div><button class="btn pcard-buy"></button>`;
+    card.querySelector("button").addEventListener("click", () => buyEraPerk(p));
+    box.appendChild(card);
+    perkEls[p.id] = { card, btn: card.querySelector("button") };
+  });
+}
+function renderEra() {
+  const gain = eraGain();
+  $("heritage-avail").textContent = fmt(state.heritage || 0);
+  $("era-num").textContent = fmt((state.era || 0) + 1);
+  $("heritage-bonus").textContent = `+${fmt((state.heritageTotal || 0) * 10)}%`;
+  const btn = $("btn-era");
+  btn.disabled = gain < 1;
+  btn.textContent = gain >= 1 ? `Begin a new Era (+${fmt(gain)} Heritage)` : `Needs ${ERA_SEATS} Knesset seats (you have ${fmt(state.seats)})`;
+  ERA_PERKS.forEach((p) => {
+    const e = perkEls[p.id], owned = eraPerk(p.id);
+    e.card.classList.toggle("owned", owned);
+    e.btn.textContent = owned ? "Owned" : `${p.cost} Heritage`;
+    e.btn.disabled = owned || (state.heritage || 0) < p.cost;
+    e.btn.classList.toggle("btn-primary", !owned && (state.heritage || 0) >= p.cost);
+  });
+}
+function buyEraPerk(p) {
+  if (eraPerk(p.id) || (state.heritage || 0) < p.cost) return sfx.denied();
+  state.heritage -= p.cost;
+  state.eraPerks.push(p.id);
+  sfx.achievement();
+  toast(`Era perk: ${p.name}`, p.desc.replace(/<[^>]+>/g, ""), p.icon, "gold");
+  recalc(); renderAll(); save();
+  account && account.soon();
+}
+function beginEra() {
+  const gain = eraGain();
+  if (gain < 1) return;
+  showModal({
+    icon: "crown",
+    title: "Begin a new Era?",
+    body: `<p>You'll earn <b>${fmt(gain)}</b> Heritage. Every Heritage point gives <b>+10% production forever</b>, and you can spend it on Era perks.</p>
+      <p class="muted small">Resets: this term, Knesset seats and Ministers, Political Capital, ${eraPerk("memory") ? "" : "the Legacy Tree, "}Endless Mandates.<br>
+      Keeps: awards, Heritage, Era perks, themes, your account and your career vote total.</p>`,
+    actions: [{ label: "Begin a new Era!", cls: "btn-primary", onClick: () => doEra(gain) }, { label: "Not yet" }],
+  });
+}
+function doEra(gain) {
+  snapshot("Before beginning a new Era");
+  const keep = {
+    lifetimeVotes: state.lifetimeVotes, era: (state.era || 0) + 1, heritage: (state.heritage || 0) + gain,
+    heritageTotal: (state.heritageTotal || 0) + gain, eraPerks: state.eraPerks, achievements: state.achievements,
+    bestVps: state.bestVps, opts: state.opts, gameStart: state.gameStart, elections: state.elections, rallies: state.rallies,
+    decisions: state.decisions, newsClicked: state.newsClicked, goalsDone: state.goalsDone,
+    tree: eraPerk("memory") ? state.tree : [], pc: 0,
+  };
+  state = Object.assign(freshState(), keep);
+  applyTermStart();
+  upgSignature = "";
+  recalc();
+  map && map.update(state.buildings);
+  renderAll();
+  sfx.election();
+  confetti(220);
+  toast(`Era ${fmt(state.era + 1)} begins!`, `+${fmt(gain)} Heritage. Production is now +${fmt(state.heritageTotal * 10)}% from Heritage.`, "crown", "gold");
+  save();
+  account && account.soon();
+}
+
+// ======================================================================
+// Campaign Goals
+// ======================================================================
+const GOAL_ICONS = { votes: "ballot", clicks: "hand", vps: "startup", upgrades: "bulb", news: "newspaper", rally: "megaphone" };
+const niceCeil = (n) => {
+  const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, n))));
+  for (const k of [1, 2, 5, 10]) if (k * p >= n) return k * p;
+  return 10 * p;
+};
+function goalProgress(g) {
+  switch (g.type) {
+    case "own": return state.buildings[g.param] || 0;
+    case "votes": return state.totalVotes;
+    case "clicks": return state.clicks;
+    case "vps": return cache.vps;
+    case "upgrades": return state.upgrades.length;
+    case "news": return state.newsClicked;
+    case "rally": return state.rallies;
+    default: return 0;
+  }
+}
+function goalText(g) {
+  switch (g.type) {
+    case "own": return `Own ${fmt(g.target)} ${BLD_BY_ID[g.param] ? BLD_BY_ID[g.param].name : "buildings"}${g.target === 1 ? "" : "s"}`;
+    case "votes": return `Win ${fmt(g.target)} votes this term`;
+    case "clicks": return `Click Bibi ${fmt(g.target)} times this term`;
+    case "vps": return `Reach ${fmt(g.target)} votes per second`;
+    case "upgrades": return `Own ${fmt(g.target)} upgrades`;
+    case "news": return "Catch a Breaking News story";
+    case "rally": return "Start a rally";
+    default: return "Goal";
+  }
+}
+function rewardText(r) {
+  const k = eraPerk("goals") ? 3 : 1;
+  if (r.kind === "lump") return `Reward: ${fmt(Math.round(r.secs * k / 60))} min of production`;
+  if (r.clickMult) return `Reward: clicks ×${r.clickMult * k} for ${r.dur}s`;
+  return `Reward: production ×${r.vpsMult * k} for ${r.dur}s`;
+}
+function makeGoal(exclude = []) {
+  const visible = BUILDINGS.filter((b, i) => isBuildingVisible(i));
+  const makers = {
+    own: () => {
+      const pool = visible.slice(-4);
+      const b = pool[Math.floor(Math.random() * pool.length)];
+      const have = state.buildings[b.id];
+      const step = have < 10 ? 5 : have < 50 ? 10 : 25;
+      return { type: "own", param: b.id, icon: b.id, target: Math.max(1, Math.ceil((have + 1) / step) * step) };
+    },
+    votes: () => ({ type: "votes", target: niceCeil(Math.max(200, state.totalVotes * (3 + Math.random() * 7))) }),
+    clicks: () => ({ type: "clicks", target: Math.ceil((state.clicks + 100 + Math.random() * 200) / 50) * 50 }),
+    vps: () => (cache.vps > 0 ? { type: "vps", target: niceCeil(cache.vps * 2.5) } : null),
+    upgrades: () => (availableUpgrades().length ? { type: "upgrades", target: state.upgrades.length + 2 + Math.floor(Math.random() * 3) } : null),
+    news: () => ({ type: "news", target: state.newsClicked + 1 }),
+    rally: () => ({ type: "rally", target: state.rallies + 1 }),
+  };
+  const types = Object.keys(makers).filter((t) => !exclude.includes(t));
+  for (let tries = 0; tries < 20; tries++) {
+    const t = types[Math.floor(Math.random() * types.length)];
+    const g = makers[t]();
+    if (!g) continue;
+    const r = Math.random();
+    g.reward = r < 0.5 ? { kind: "lump", secs: 300 + Math.floor(Math.random() * 4) * 150 }
+      : r < 0.8 ? { kind: "buff", vpsMult: 3, dur: 60 } : { kind: "buff", clickMult: 10, dur: 30 };
+    g.id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    g.icon = g.icon || GOAL_ICONS[g.type];
+    return g;
+  }
+  return { id: `${Date.now()}`, type: "clicks", target: state.clicks + 100, icon: "hand", reward: { kind: "lump", secs: 300 } };
+}
+function fillGoals() {
+  while (state.goals.length < 3) state.goals.push(makeGoal(state.goals.map((g) => g.type)));
+}
+function completeGoal(g) {
+  const k = eraPerk("goals") ? 3 : 1;
+  const r = g.reward;
+  let body;
+  if (r.kind === "lump") body = `+${fmtBig(lumpVotes(r.secs * k))} votes`;
+  else body = `${r.clickMult ? `Clicks ×${r.clickMult * k}` : `Production ×${r.vpsMult * k}`} for ${addBuff({ key: `goal${r.clickMult ? "c" : "p"}`, label: r.clickMult ? `Goal bonus · clicks ×${r.clickMult * k}` : `Goal bonus ×${r.vpsMult * k}`, icon: "scroll", vpsMult: r.vpsMult && r.vpsMult * k, clickMult: r.clickMult && r.clickMult * k, dur: r.dur })}s`;
+  state.goalsDone = (state.goalsDone || 0) + 1;
+  if (state.goalsDone % 10 === 0 && state.seats > 0) {
+    const pcGain = Math.floor(Math.sqrt(state.seats)) + 1;
+    state.pc += pcGain;
+    body += ` and +${fmt(pcGain)} Political Capital (every 10th goal)`;
+  }
+  sfx.upgrade();
+  toast(`Goal complete: ${goalText(g)}`, body, g.icon, "gold");
+}
+let goalSig = "";
+function renderGoals() {
+  const box = $("goal-list");
+  if (!box) return;
+  const sig = state.goals.map((g) => g.id).join(",") + state.opts.numbers;
+  if (sig !== goalSig) {
+    goalSig = sig;
+    box.innerHTML = state.goals.map((g) => `<div class="goal" data-id="${g.id}">${img(g.icon, "goal-ico")}
+      <div class="goal-main"><div class="goal-text">${esc(goalText(g))}</div><div class="goal-bar"><i></i></div><div class="goal-reward">${esc(rewardText(g.reward))}</div></div>
+      <button class="goal-reroll" title="Swap this goal for another" aria-label="Swap this goal">↻</button></div>`).join("");
+    box.querySelectorAll(".goal-reroll").forEach((b) => b.addEventListener("click", () => rerollGoal(b.closest(".goal").dataset.id)));
+  }
+  const cool = Date.now() < (state.goalRerollAt || 0);
+  box.querySelectorAll(".goal").forEach((el) => {
+    const g = state.goals.find((x) => x.id === el.dataset.id);
+    if (!g) return;
+    el.querySelector(".goal-bar i").style.width = `${Math.min(100, (goalProgress(g) / g.target) * 100)}%`;
+    const rb = el.querySelector(".goal-reroll");
+    rb.disabled = cool;
+    rb.title = cool ? `Swap available in ${Math.ceil((state.goalRerollAt - Date.now()) / 1000)}s` : "Swap this goal for another";
+  });
+}
+function rerollGoal(id) {
+  if (Date.now() < (state.goalRerollAt || 0)) return sfx.denied();
+  const i = state.goals.findIndex((g) => g.id === id);
+  if (i < 0) return;
+  state.goals[i] = makeGoal(state.goals.filter((g) => g.id !== id).map((g) => g.type).concat(state.goals[i].type));
+  state.goalRerollAt = Date.now() + 60000;
+  renderGoals();
+}
+function checkGoals() {
+  fillGoals();
+  let done = false;
+  state.goals.forEach((g, i) => {
+    if (goalProgress(g) >= g.target) {
+      completeGoal(g);
+      state.goals[i] = makeGoal(state.goals.filter((x) => x.id !== g.id).map((x) => x.type));
+      done = true;
+    }
+  });
+  if (done) checkAchievements();
+  renderGoals();
 }
 
 // ======================================================================
@@ -874,7 +1154,10 @@ function renderStats() {
   const rows = [
     ["Votes in bank", fmtBig(state.votes)],
     ["Votes this term", fmtBig(state.totalVotes)],
-    ["Votes all time", fmtBig(state.allTimeVotes)],
+    ["Votes this Era", fmtBig(state.allTimeVotes)],
+    ["Votes in your whole career", fmtBig(state.lifetimeVotes || state.allTimeVotes)],
+    ["Era", `${fmt((state.era || 0) + 1)} · ${fmt(state.heritageTotal || 0)} Heritage (+${fmt((state.heritageTotal || 0) * 10)}%)`],
+    ["Campaign Goals completed", fmt(state.goalsDone || 0)],
     ["Votes per second", fmtBig(cache.vps)],
     ["Best votes per second", fmtBig(state.bestVps)],
     ["Votes per click", fmtBig(cache.clickPower)],
@@ -1017,6 +1300,10 @@ function deserialize(str) {
   s.rally = Object.assign(freshState().rally, data.rally || {});
   // saves from before the Legacy Tree: existing seats become Political Capital
   if (data.pc === undefined) s.pc = s.seats || 0;
+  if (data.lifetimeVotes === undefined) s.lifetimeVotes = s.allTimeVotes || 0;
+  s.mandates = Object.fromEntries(Object.entries(data.mandates || {}).filter(([k, v]) => MANDATE_BY_ID[k] && v > 0));
+  s.eraPerks = (data.eraPerks || []).filter((id) => ERA_PERK_BY_ID[id]);
+  s.goals = Array.isArray(data.goals) ? data.goals.filter((g) => g && g.type && g.target) : [];
   s.tree = (data.tree || []).filter((id) => TREE_BY_ID[id]);
   s.buffs = (data.buffs || []).filter((b) => b.until > Date.now());
   s.history = Array.isArray(data.history) ? data.history.slice(-240) : [];
@@ -1031,7 +1318,9 @@ function save(quiet = true) {
 // A short description of a save, used for backups and for comparing with the cloud
 function summary(s = state) {
   return {
-    allTimeVotes: s.allTimeVotes || 0, votes: s.votes || 0, seats: s.seats || 0, elections: s.elections || 0,
+    // lifetime votes never go down (eras reset the per-era count), so they are used to compare saves
+    allTimeVotes: s.lifetimeVotes || s.allTimeVotes || 0, votes: s.votes || 0, seats: s.seats || 0, elections: s.elections || 0,
+    era: s.era || 0,
     upgrades: (s.upgrades || []).length, lastSave: s.lastSave || Date.now(),
   };
 }
@@ -1067,7 +1356,7 @@ function loadSave(str) {
   save();
 }
 function applyOffline() {
-  const away = Math.min((Date.now() - state.lastSave) / 1000, OFFLINE_CAP_S);
+  const away = Math.min((Date.now() - state.lastSave) / 1000, offlineCap());
   if (away < 60) return;
   recalc();
   const gain = cache.baseVps * away * offlineRate();
@@ -1285,6 +1574,7 @@ function frame(now) {
     if (ui.tab === "stats") renderStats();
     if (ui.tab === "knesset") renderKnesset();
     renderTree();
+    checkGoals();
   }
   histAcc += dt;
   if (histAcc >= 5) {
@@ -1376,6 +1666,8 @@ function init() {
   buildAchievements();
   buildHemicycle();
   buildTree();
+  buildMandates();
+  buildEra();
   const loaded = load();
   setSoundEnabled(state.opts.sound);
   recalc();
@@ -1413,6 +1705,7 @@ function init() {
   els.btnElection.addEventListener("click", callElection);
   $("btn-open-tree").addEventListener("click", () => setTab("legacy"));
   $("btn-respec").addEventListener("click", respecTree);
+  $("btn-era").addEventListener("click", beginEra);
   $("btn-map-rotate").addEventListener("click", (e) => { if (map) e.target.textContent = `Auto-rotate: ${map.toggleRotate() ? "on" : "off"}`; });
   $("btn-map-reset").addEventListener("click", () => { if (map) { map.resetView(); $("btn-map-rotate").textContent = "Auto-rotate: on"; } });
 
@@ -1486,7 +1779,7 @@ function init() {
   account = initAccounts({ serialize, summary, loadSave, snapshot, toast, showModal, fmtBig, fmtTime, esc });
   leaderboard = initLeaderboard({
     account, fmt, fmtBig, esc, toast, img,
-    stats: () => ({ allTimeVotes: state.allTimeVotes || 0, seats: Math.floor(state.seats || 0), bestVps: state.bestVps || 0 }),
+    stats: () => ({ allTimeVotes: state.lifetimeVotes || state.allTimeVotes || 0, seats: Math.floor(state.seats || 0), bestVps: state.bestVps || 0 }),
   });
   window.addEventListener("beforeunload", () => save());
   document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });

@@ -340,6 +340,32 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
 .lb-msg { padding: 14px 4px; margin: 0; }
 .lb-foot { margin-top: 10px; }
 
+/* ---------- endless mandates & era perks ---------- */
+.pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.pcard { display: grid; grid-template-columns: 46px 1fr auto; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px 10px 8px 6px; }
+.pcard.owned { border-color: var(--gold); background: var(--surface-solid); box-shadow: 0 0 0 2px rgba(242, 183, 5, 0.2); }
+.pcard-ico { width: 46px; height: 46px; }
+.pcard-name { font-weight: 800; font-size: 0.9rem; }
+.pcard-lvl { font-size: 0.72rem; font-weight: 800; color: var(--accent); background: var(--blue-soft); border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+.pcard-desc { font-size: 0.8rem; color: var(--muted); }
+.pcard-buy { padding: 6px 10px; font-size: 0.8rem; white-space: nowrap; }
+.pcard-buy:disabled { opacity: 0.55; cursor: not-allowed; }
+.era-btn { width: 100%; margin: 4px 0 10px; }
+.era-btn:disabled { background: var(--seat-empty); border-color: var(--seat-empty); color: var(--muted); box-shadow: none; cursor: not-allowed; }
+
+/* ---------- campaign goals ---------- */
+.goals { width: 100%; max-width: 420px; margin-top: 10px; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 14px; padding: 8px 10px; }
+.goals-head { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.85rem; margin-bottom: 4px; }
+.goal-list { display: grid; gap: 6px; }
+.goal { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; }
+.goal-ico { width: 34px; height: 34px; }
+.goal-text { font-size: 0.8rem; font-weight: 700; line-height: 1.15; }
+.goal-bar { height: 6px; border-radius: 999px; background: var(--track); margin: 3px 0 2px; overflow: hidden; }
+.goal-bar i { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--rally-grad); transition: width 0.3s; }
+.goal-reward { font-size: 0.7rem; color: var(--muted); }
+.goal-reroll { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-solid); color: var(--accent); font-weight: 900; padding: 0; }
+.goal-reroll:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ---------- stats ---------- */
 .graph-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; }
 .graph-title { font-size: 0.8rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
@@ -416,6 +442,8 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
 .frame-blue { --ring: #2f62d8; }
 .frame-flag { --ring: #0038b8; background: linear-gradient(180deg, #fff 0 14%, #dfe7fb 14% 26%, #fff 26% 74%, #dfe7fb 74% 86%, #fff 86%); }
 .frame-synergy { --ring: #168a48; }
+.frame-cosmic { --ring: #0ea5e9; background: radial-gradient(circle at 50% 35%, #e0f7ff, #b3e6ff); }
+.frame-eternal { --ring: #f43f5e; background: radial-gradient(circle at 50% 35%, #fff0f6, #ffd1e1); box-shadow: 0 0 10px rgba(244, 63, 94, 0.35); }
 
 .buildings { display: flex; flex-direction: column; gap: 6px; }
 .bld {

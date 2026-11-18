@@ -97,7 +97,7 @@ export function createMap(canvas, { buildings, onHover }) {
   controls.dampingFactor = 0.07;
   controls.enablePan = false;
   controls.minDistance = 8;
-  controls.maxDistance = 34;
+  controls.maxDistance = 46;
   controls.maxPolarAngle = 1.32;
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.35;
@@ -469,7 +469,8 @@ export function createMap(canvas, { buildings, onHover }) {
     obj.userData.baseScale = b.map.scale;
     obj.userData.target = b.map.scale;
     if (b.map.orbit) {
-      obj.userData.orbit = { rad: 12.5 + (idx % 3) * 1.4, y: 6 + (idx % 4) * 0.9, a: idx * 2.39, speed: 0.12 + (idx % 5) * 0.03 };
+      const o = b.map.orbit === true ? { rad: 12.5, y: 6 } : b.map.orbit;
+      obj.userData.orbit = { rad: o.rad + (idx % 3) * 1.4, y: o.y + (idx % 4) * 0.9, a: idx * 2.39 + o.rad, speed: (0.12 + (idx % 5) * 0.03) * (12.5 / o.rad) };
       orbitGroup.add(obj);
     } else {
       const s = slots[b.id][idx];
@@ -510,7 +511,7 @@ export function createMap(canvas, { buildings, onHover }) {
 
   // ---- upgrade visuals ----
   // Building tier upgrades: pedestal colored by tier (bronze..diamond), a glow ring from tier 4
-  const TIER_COLORS = ["#c77b3b", "#c8ced8", "#f2b705", "#7fd3e6", "#e0244a", "#b57cff"];
+  const TIER_COLORS = ["#c77b3b", "#c8ced8", "#f2b705", "#7fd3e6", "#e0244a", "#b57cff", "#0ea5e9", "#f43f5e"];
   const pedGeo = new THREE.CylinderGeometry(0.62, 0.7, 0.1, 28);
   const pedMats = TIER_COLORS.map((c) => withEnv(new THREE.MeshStandardMaterial({ color: c, metalness: 0.85, roughness: 0.3, emissive: c, emissiveIntensity: 0.1 })));
   const glowGeo = new THREE.TorusGeometry(0.8, 0.04, 8, 48);
@@ -518,7 +519,7 @@ export function createMap(canvas, { buildings, onHover }) {
   let tierLook = {};
   function decorate(obj) {
     obj.children.filter((c) => c.userData.deco).forEach((c) => obj.remove(c));
-    const n = Math.min(6, tierLook[obj.userData.type] || 0);
+    const n = Math.min(TIER_COLORS.length, tierLook[obj.userData.type] || 0);
     obj.userData.target = obj.userData.baseScale * (1 + 0.04 * n);
     if (n <= 0) return;
     if (!obj.userData.orbit) {
@@ -589,7 +590,12 @@ export function createMap(canvas, { buildings, onHover }) {
   let arcSig = "";
   function districtPoint(id) {
     const i = ground.findIndex((b) => b.id === id);
-    if (i < 0) return new THREE.Vector3(0, 7.5, 0);
+    if (i < 0) {
+      const b = buildings.find((x) => x.id === id);
+      const o = b && b.map.orbit && b.map.orbit !== true ? b.map.orbit : { rad: 12.5, y: 6 };
+      const a = buildings.indexOf(b) * 1.3;
+      return new THREE.Vector3(Math.cos(a) * o.rad * 0.6, o.y, Math.sin(a) * o.rad * 0.6);
+    }
     const a = (i + 0.5) * sector;
     return new THREE.Vector3(Math.cos(a) * 6.8, 0.6, Math.sin(a) * 6.8);
   }
