@@ -48,6 +48,10 @@
         <div class="theme-pop-title">Theme</div>
         <div class="theme-grid" id="theme-pop-grid"></div>
       </div>
+      <button id="btn-account" class="icon-btn account-btn" aria-label="Account" title="Account">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4" fill="currentColor"/><path d="M4 20.5c.8-4 4-6 8-6s7.2 2 8 6" fill="currentColor"/></svg>
+        <span class="acct-dot" id="acct-dot"></span>
+      </button>
       <button id="btn-sound" class="icon-btn" aria-label="Sound on" title="Sound on/off">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path class="mute" d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
@@ -183,6 +187,15 @@
           </div>
         </div>
         <div class="opt-group">
+          <span class="opt-label">Account</span>
+          <span class="muted small" id="acct-status-text"></span>
+          <button id="btn-open-account" class="btn btn-primary">Account &amp; cloud save</button>
+        </div>
+        <div class="opt-group">
+          <span class="opt-label">Backups</span>
+          <div id="backup-list" class="backup-wrap"></div>
+        </div>
+        <div class="opt-group">
           <span class="opt-label">Save</span>
           <div class="opt-row">
             <button id="btn-save" class="btn">Save now</button>
@@ -222,6 +235,14 @@
     <button data-view="store"><img src="assets/icons/falafel.png" alt="">Store<span class="nav-dot hidden" id="nav-store-dot"></span></button>
   </nav>
 
+  <div id="account" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="account-title">
+    <div class="modal-card account-card">
+      <button class="modal-x" id="account-close" aria-label="Close">&times;</button>
+      <img class="modal-img" src="assets/icons/ballot.png" alt="">
+      <h2 id="account-title">Account &amp; cloud save</h2>
+      <div id="account-body" class="account-body"></div>
+    </div>
+  </div>
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-card">
       <img id="modal-img" class="modal-img" src="assets/icons/scroll.png" alt="">

@@ -37,6 +37,39 @@ build a campaign empire on a floating 3D island, and call early elections to win
     add orbiting stars, global upgrades grow a laurel wreath, and synergies set gems in the rim;
   - Fireworks Finale launches fireworks over the island during rallies.
 
+## Saving, accounts & backups
+
+- **No account needed.** The game saves on your device every 10 seconds, exactly as before. Old saves keep working.
+- **Accounts (optional):** sign in with email and password or Google to save your progress to an account and play
+  on any device. Creating an account uploads the progress already on your device.
+- **Progress is never silently overwritten.** If your account and your device have different progress, the game asks
+  which to keep, and the other one is kept as a backup. Two devices can't overwrite each other: every cloud save must
+  build on the previous one (enforced by `firestore.rules`).
+- **Backups:** automatic snapshots every 15 minutes, plus one before anything replaces your progress (importing,
+  wiping, elections, restoring, loading from your account). Restore them from **Options → Backups**. Your account
+  keeps its own backups too, made automatically before its progress is replaced or goes down.
+- If the latest save on a device is ever unreadable, the game loads the previous save or the newest backup instead.
+
+## Accounts & cloud saves: setup
+
+Accounts use [Firebase](https://firebase.google.com/) (the free plan is enough). Until this is set up, the account
+button explains that accounts aren't switched on yet and the game saves on the device only.
+
+1. Go to the [Firebase console](https://console.firebase.google.com/) and **create a project** (Google Analytics is optional).
+2. **Authentication** → Get started → **Sign-in method**: enable **Email/Password** and **Google**.
+3. **Authentication → Settings → Authorized domains**: add `roorogeo.github.io`.
+4. **Firestore Database** → Create database (production mode, any location).
+5. Firestore → **Rules**: replace the rules with the contents of [`firestore.rules`](firestore.rules) and click **Publish**.
+6. **Project settings** (gear icon) → General → Your apps → add a **Web app** (`</>`). Copy the `apiKey`, `authDomain`,
+   `projectId` and `appId` values into [`js/cloud-config.js`](js/cloud-config.js) and push.
+
+These config values are safe to publish; the rules make sure each player can only read and write their own save.
+The free plan allows 20,000 save writes per day; the game saves to an account about once every 90 seconds while
+someone is playing, plus after big moments.
+
+**Testing locally with the Firebase emulators:** run `firebase emulators:start --only auth,firestore --project demo-bibi`
+in the repo, serve the site on `localhost`, and open it with `?emulator=1`.
+
 ## Run locally
 
 It's a static site with no build step, but it uses ES modules, so serve it over HTTP:
@@ -54,6 +87,10 @@ python3 -m http.server 8000
 | `css/style.css` | Glass-panel UI, responsive layout |
 | `js/main.js` | Game state, economy, UI, events, save/load |
 | `js/data.js` | All content: buildings, upgrades, ministers, awards, events, headlines |
+| `js/account.js` | Sign-in screens and syncing between the device and the account |
+| `js/cloud.js` | Firebase login and cloud saves (`js/cloud-config.js` switches it on) |
+| `js/safety.js` | Local save mirror and backups |
+| `firestore.rules` | Server-side rules: players can only touch their own save |
 | `js/themes.js` | The 13 themes: UI colors, flag, coin, sky, lighting and island extras |
 | `js/models.js` | Procedural low-poly 3D models, shared by the map and the icon renderer |
 | `js/badge3d.js` | The clickable 3D coin |
@@ -63,6 +100,7 @@ python3 -m http.server 8000
 | `assets/icons/` | PNG icons rendered from the 3D models |
 | `tools/render-icons.*` | Re-renders the icons after you change a model |
 | `vendor/three/` | three.js r160 (MIT license) |
+| `vendor/firebase/` | Firebase JS SDK 10.14.1, bundled (Apache-2.0) |
 
 To re-render the icons after editing `js/models.js`, start a local server on port 8765 and run
 `node tools/render-icons.cjs`. It needs Playwright with Chromium.

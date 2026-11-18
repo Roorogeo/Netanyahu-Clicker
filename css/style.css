@@ -465,6 +465,53 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
 .modal-actions { display: grid; gap: 8px; margin-top: 14px; }
 @keyframes modalIn { from { transform: scale(0.85) translateY(20px); opacity: 0; } }
 
+/* ---------- account ---------- */
+.account-btn { position: relative; }
+.acct-dot { position: absolute; right: 5px; bottom: 5px; width: 10px; height: 10px; border-radius: 50%; background: #9aa3b2; box-shadow: 0 0 0 2px var(--surface-solid); }
+.acct-dot[data-status="off"] { display: none; }
+.acct-dot[data-status="synced"] { background: var(--good); }
+.acct-dot[data-status="syncing"], .acct-dot[data-status="loading"] { background: #3b82f6; animation: blink 1s ease-in-out infinite; }
+.acct-dot[data-status="offline"] { background: #f59e0b; }
+.acct-dot[data-status="conflict"] { background: var(--bad); animation: blink 1s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: 0.35; } }
+.account-card { position: relative; text-align: left; }
+.account-card h2, .account-card .modal-img { display: block; margin-left: auto; margin-right: auto; text-align: center; }
+.modal-x { position: absolute; top: 10px; right: 12px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--track); font-size: 1.4rem; line-height: 1; color: var(--ink); }
+.account-body { display: grid; gap: 10px; }
+.account-body p { margin: 0; }
+.acct-tabs { width: 100%; }
+.acct-tabs button { flex: 1; padding: 8px; }
+.acct-form { display: grid; gap: 10px; }
+.acct-form label { display: grid; gap: 4px; font-weight: 600; font-size: 0.88rem; }
+.acct-form input {
+  font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface-solid); color: var(--ink);
+}
+.acct-form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.acct-error { min-height: 1.2em; color: var(--bad); font-size: 0.86rem; font-weight: 600; }
+.acct-error .ok { color: var(--good); }
+.acct-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.8rem; }
+.acct-or::before, .acct-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px; }
+.google-btn svg { width: 20px; height: 20px; }
+.linklike { border: 0; background: none; color: var(--accent); font-weight: 600; padding: 4px 0; text-decoration: underline; justify-self: center; }
+.linklike.danger { color: var(--bad); font-size: 0.85rem; }
+.acct-user { display: flex; align-items: center; gap: 12px; }
+.acct-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--accent-grad); color: var(--on-accent); display: grid; place-items: center; font-weight: 900; font-size: 1.3rem; flex: none; }
+.acct-sync { font-size: 0.85rem; color: var(--muted); }
+.acct-sync[data-status="synced"]::before { content: "● "; color: var(--good); }
+.acct-sync[data-status="offline"]::before { content: "● "; color: #f59e0b; }
+.acct-sync[data-status="conflict"]::before { content: "● "; color: var(--bad); }
+.acct-actions { display: grid; gap: 8px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; text-align: left; }
+.compare > div { background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: grid; gap: 4px; font-size: 0.85rem; }
+.backup-wrap { width: 100%; }
+.backup-list { display: grid; gap: 6px; width: 100%; max-height: 300px; overflow: auto; }
+.backup-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface-solid); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+.backup-row > div { display: grid; gap: 2px; font-size: 0.85rem; min-width: 0; }
+.backup-row span { color: var(--muted); font-size: 0.78rem; }
+.backup-row .btn { padding: 6px 12px; flex: none; }
+
 /* ---------- confetti ---------- */
 .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 110; overflow: hidden; }
 .confetti i { position: absolute; top: -20px; width: 10px; height: 14px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06); animation-name: fall; animation-timing-function: cubic-bezier(.3, .6, .6, 1); animation-fill-mode: forwards; }

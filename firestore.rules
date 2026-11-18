@@ -1,0 +1,39 @@
+rules_version = '2';
+
+// Bibi Clicker cloud saves.
+// Each signed-in player can only read and write their own save document.
+// Every write must bump `rev` by exactly 1, so two devices can never silently
+// overwrite each other: the second write is rejected and the game asks the player.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function validSave() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['save', 'rev', 'updatedAt', 'summary', 'device', 'app'])
+        && d.save is string && d.save.size() < 900000
+        && d.rev is int
+        && d.summary is map;
+    }
+
+    match /saves/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid) && validSave() && request.resource.data.rev == 1;
+      allow update: if isOwner(uid) && validSave() && request.resource.data.rev == resource.data.rev + 1;
+
+      // Safety copies made before anything is replaced. Never edited, only added or removed.
+      match /backups/{backupId} {
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.save is string && request.resource.data.save.size() < 900000;
+        allow update: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -4,6 +4,8 @@ import {
   NEWS_EFFECTS, DECISIONS, HEADLINES, SEATS_TOTAL, TREE, TREE_BY_ID,
 } from "./data.js";
 import { THEMES, THEME_BY_ID } from "./themes.js";
+import { writeSave, saveCandidates, listBackups, addBackup } from "./safety.js";
+import { initAccounts } from "./account.js";
 import { sfx, setSoundEnabled, unlockAudio } from "./audio.js";
 
 const SAVE_KEY = "bibiClickerSave.v1";
@@ -34,7 +36,7 @@ const freshState = () => ({
 let state = freshState();
 const cache = { vps: 0, baseVps: 0, perBuilding: {}, clickPower: 1, globalMult: 1 };
 const ui = { buyMode: "buy", buyAmount: 1, tab: "map", view: "campaign" };
-let badge = null, map = null, flagBg = null;
+let badge = null, map = null, flagBg = null, account = null;
 
 // ======================================================================
 // Formatting
@@ -447,6 +449,7 @@ function buyUpgrade(u) {
   recalc();
   applyUpgradeLook();
   announceLook(u, before);
+  account && account.soon();
   hideTooltip();
   renderUpgrades();
 }
@@ -710,6 +713,7 @@ function callElection() {
   });
 }
 function doElection(gain) {
+  snapshot("Before calling an election");
   const keep = {
     pc: (state.pc || 0) + gain, tree: state.tree || [],
     allTimeVotes: state.allTimeVotes, seats: state.seats + gain, elections: state.elections + 1,
@@ -729,6 +733,7 @@ function doElection(gain) {
   renderAll();
   sfx.election();
   confetti(160);
+  account && account.soon();
   toast("Election results are in!", `You now hold ${fmt(state.seats)} Knesset seats. A new term begins.`, "chair", "gold");
   save();
 }
@@ -804,6 +809,7 @@ function buyNode(n) {
   refreshTooltip();
   checkAchievements();
   save();
+  account && account.soon();
 }
 function respecTree() {
   const spent = (state.tree || []).reduce((a, id) => a + TREE_BY_ID[id].cost, 0);
@@ -1017,18 +1023,47 @@ function deserialize(str) {
   return s;
 }
 function save(quiet = true) {
-  try {
-    localStorage.setItem(SAVE_KEY, serialize());
-    if (!quiet) toast("Game saved", "Your campaign is safe.", "ballot");
-  } catch (e) {
-    if (!quiet) toast("Couldn't save", "Your browser is blocking storage for this page.", "scroll");
-  }
+  const ok = writeSave(SAVE_KEY, serialize());
+  if (!quiet) toast(ok ? "Game saved" : "Couldn't save", ok ? "Your campaign is safe." : "Your browser is blocking storage for this page.", ok ? "ballot" : "scroll");
+  return ok;
 }
+// A short description of a save, used for backups and for comparing with the cloud
+function summary(s = state) {
+  return {
+    allTimeVotes: s.allTimeVotes || 0, votes: s.votes || 0, seats: s.seats || 0, elections: s.elections || 0,
+    upgrades: (s.upgrades || []).length, lastSave: s.lastSave || Date.now(),
+  };
+}
+let recoveredFrom = null;
 function load() {
-  let raw = null;
-  try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { /* storage blocked */ }
-  if (!raw) return false;
-  try { state = deserialize(raw); return true; } catch (e) { console.warn("Bad save, starting fresh", e); return false; }
+  // Try the main save, then the mirror of the previous save, then the newest backup
+  const candidates = saveCandidates(SAVE_KEY);
+  for (let i = 0; i < candidates.length; i++) {
+    try {
+      state = deserialize(candidates[i]);
+      if (i > 0) recoveredFrom = "the previous save";
+      return true;
+    } catch (e) { console.warn("Unreadable save, trying the next copy", e); }
+  }
+  for (const b of listBackups()) {
+    try { state = deserialize(b.save); recoveredFrom = "a backup"; return true; } catch (e) { /* try older */ }
+  }
+  return false;
+}
+// Keep a restorable copy of the current progress before anything replaces it
+function snapshot(reason, kind = "safety") {
+  if ((state.allTimeVotes || 0) <= 0 && !state.clicks) return;
+  addBackup(serialize(), summary(), reason, kind);
+}
+// Replace the current progress with a save string (import, restore, cloud). Caller snapshots first.
+function loadSave(str) {
+  state = deserialize(str);
+  upgSignature = "";
+  setSoundEnabled(state.opts.sound);
+  recalc();
+  renderAll();
+  map && map.update(state.buildings);
+  save();
 }
 function applyOffline() {
   const away = Math.min((Date.now() - state.lastSave) / 1000, OFFLINE_CAP_S);
@@ -1153,6 +1188,41 @@ function announceLook(u, before) {
   }
 }
 darkMQ.addEventListener("change", () => { if ((state.opts.theme || "auto") === "auto") applyTheme(); });
+
+// ======================================================================
+// Backups (Options)
+// ======================================================================
+function renderBackups() {
+  const box = $("backup-list");
+  if (!box) return;
+  const list = listBackups();
+  if (!list.length) {
+    box.innerHTML = `<p class="muted small">No backups yet. One is made automatically every 15 minutes, and before anything replaces your progress (importing, wiping, elections, loading from your account).</p>`;
+    return;
+  }
+  box.innerHTML = `<div class="backup-list">${list.map((b) => `<div class="backup-row"><div><b>${esc(b.reason || "Backup")}</b>
+    <span><b>${fmtBig(b.summary.allTimeVotes || 0)}</b> votes all time · <b>${b.summary.seats || 0}</b> seats · ${fmtTime((Date.now() - b.t) / 1000)} ago</span></div>
+    <button class="btn" data-id="${b.id}">Restore</button></div>`).join("")}</div>`;
+  box.querySelectorAll("button[data-id]").forEach((bt) => bt.addEventListener("click", () => {
+    const b = listBackups().find((x) => x.id === bt.dataset.id);
+    if (!b) return;
+    showModal({
+      icon: "scroll", title: "Restore this backup?",
+      body: `<p><b>${fmtBig(b.summary.allTimeVotes || 0)}</b> votes all time, <b>${b.summary.seats || 0}</b> seats, from ${fmtTime((Date.now() - b.t) / 1000)} ago.</p>
+        <p class="muted small">Your current progress is backed up first, so you can switch back.</p>`,
+      actions: [
+        { label: "Restore it", cls: "btn-primary", onClick: () => {
+          snapshot("Before restoring a backup");
+          loadSave(b.save);
+          account && account.soon();
+          renderBackups();
+          toast("Backup restored", "Your previous progress was backed up first.", "ballot", "gold");
+        } },
+        { label: "Cancel" },
+      ],
+    });
+  }));
+}
 
 // ======================================================================
 // Rendering all
@@ -1288,6 +1358,7 @@ function setTab(tab) {
   if (tab === "knesset") { renderKnesset(); renderTree(); }
   if (tab === "legacy") renderTree();
   if (tab === "achievements") renderAchievements();
+  if (tab === "options") renderBackups();
   syncMapActive();
 }
 function setView(view) {
@@ -1378,12 +1449,11 @@ function init() {
     const txt = els.saveText.value.trim();
     if (!txt) return toast("Nothing to import", "Paste a save into the box first.", "scroll");
     try {
-      state = deserialize(txt);
-      upgSignature = "";
-      setSoundEnabled(state.opts.sound);
-      recalc(); renderAll(); save();
-      map && map.update(state.buildings);
-      toast("Save imported", "Welcome back to the campaign trail.", "ballot");
+      deserialize(txt); // validate before touching anything
+      snapshot("Before importing a save");
+      loadSave(txt);
+      account && account.soon();
+      toast("Save imported", "Your previous progress was kept in Backups, just in case.", "ballot");
     } catch (e) {
       toast("Import failed", "That doesn't look like a valid save.", "scroll");
     }
@@ -1391,15 +1461,17 @@ function init() {
   $("btn-reset").addEventListener("click", () => {
     showModal({
       icon: "scroll", title: "Wipe your save?",
-      body: "<p>This deletes all progress, including seats and awards. It can't be undone.</p>",
+      body: "<p>This starts a brand-new campaign: all progress, seats and awards are cleared.</p><p class=\"muted small\">A backup is kept in Options → Backups, so you can still undo this.</p>",
       actions: [
         { label: "Wipe everything", cls: "btn-danger", onClick: () => {
-          try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+          snapshot("Before wiping the save");
           state = freshState();
+          save();
           upgSignature = "";
           recalc(); renderAll();
           map && map.update(state.buildings);
-          toast("Save wiped", "A brand-new campaign begins.", "ballot");
+          renderBackups();
+          toast("Save wiped", "A brand-new campaign begins. Your old progress is in Backups.", "ballot");
         } },
         { label: "Keep my campaign", cls: "btn-primary" },
       ],
@@ -1407,6 +1479,9 @@ function init() {
   });
 
   setInterval(save, 10000);
+  setInterval(() => { snapshot("Automatic backup", "auto"); if (ui.tab === "options") renderBackups(); }, 15 * 60 * 1000);
+  if (recoveredFrom) setTimeout(() => toast("Progress recovered", `Your latest save couldn't be read, so we loaded ${recoveredFrom}.`, "scroll", "gold"), 1500);
+  account = initAccounts({ serialize, summary, loadSave, snapshot, toast, showModal, fmtBig, fmtTime, esc });
   window.addEventListener("beforeunload", () => save());
   document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 
@@ -1415,7 +1490,7 @@ function init() {
   init3D();
 
   // test/debug hook
-  window.__bibi = { get state() { return state; }, set state(s) { state = s; }, recalc, renderAll, spawnNews, offerDecision, startRally, save, get map() { return map; }, get badge() { return badge; } };
+  window.__bibi = { get state() { return state; }, set state(s) { state = s; }, recalc, renderAll, spawnNews, offerDecision, startRally, save, snapshot, get account() { return account; }, get map() { return map; }, get badge() { return badge; } };
 }
 
 init();
