@@ -93,6 +93,19 @@ someone is playing, plus after big moments.
 **Testing locally with the Firebase emulators:** run `firebase emulators:start --only auth,firestore --project demo-bibi`
 in the repo, serve the site on `localhost`, and open it with `?emulator=1`.
 
+## Balance
+
+Pacing is tuned with `tools/balance-sim.cjs`, a bot that plays the real economy at high speed (see the file for
+usage). Key rules that keep growth from running away:
+- Seats grow with the cube root of this Era's votes (1 seat at 1e11). Each of the first 120 seats gives +2%;
+  beyond 120 the bonus grows logarithmically.
+- Heritage ever earned = cube root of career votes ÷ 1e18. Each of the first 30 points gives +10%, then the bonus
+  grows logarithmically, so each new Era needs much more progress than the last.
+- Synergies count at most 100 source buildings, and space-age buildings get steadily less cost-efficient.
+
+With 2 clicks per second around the clock, the bot reaches the first election in about half a day, its first Era
+in about two weeks, and is still working through the deep-space buildings after 45 days.
+
 ## Releasing
 
 Before each commit, run `python3 tools/stamp-version.py`. It stamps a content hash onto every script and stylesheet

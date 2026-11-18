@@ -22,7 +22,7 @@ const RALLY_CLICK_MULT = 7, RALLY_VPS_MULT = 2;
 // State
 // ======================================================================
 const freshState = () => ({
-  version: 3,
+  version: 4,
   votes: 0, totalVotes: 0, allTimeVotes: 0,
   clicks: 0, clickVotes: 0, newsClicked: 0, elections: 0, seats: 0,
   rallies: 0, decisions: 0, bestVps: 0,
@@ -97,6 +97,16 @@ const rallyActive = () => Date.now() < state.rally.until;
 
 const perk = (id) => (state.tree || []).includes(id);
 const seatBonus = () => (perk("dynasty") ? 0.03 : SEAT_BONUS);
+// The Knesset has 120 seats: each of the first 120 gives the full bonus; beyond that the bonus
+// grows logarithmically (every doubling of seats adds another step). This keeps growth from running away.
+function seatFactor(S = state.seats, per = seatBonus()) {
+  const full = 1 + per * Math.min(S, 120);
+  return S <= 120 ? full : full * (1 + Math.log2(S / 120));
+}
+// Heritage: +10% for each of the first 30 points, then logarithmic in the same way
+function heritageFactor(H = state.heritageTotal || 0) {
+  return H <= 30 ? 1 + 0.1 * H : 4 * (1 + Math.log2(H / 30));
+}
 function buildingDiscount() { return (minister("transport") ? 0.95 : 1) * (perk("heroes") ? 0.9 : 1) * Math.pow(0.98, mandate("machine")); }
 function upgradeCost(u) { return Math.ceil(u.cost * (minister("science") ? 0.9 : 1) * (perk("seasoned") ? 0.85 : 1)); }
 function rallyDuration() { return (10 + (has("rally_1") ? 5 : 0) + (perk("encore") ? 10 : 0)) * (minister("culture") ? 1.5 : 1); }
@@ -125,22 +135,21 @@ function resolveAmount(b) {
 function globalMultiplier() {
   let m = 1;
   for (const id of state.upgrades) { const u = UPG_BY_ID[id]; if (u && u.kind === "global") m += u.value; }
-  m *= 1 + state.seats * seatBonus();
+  m *= seatFactor();
   m *= 1 + state.achievements.length * ACH_BONUS;
   if (minister("finance")) m *= 1.1;
-  if (minister("majority")) m *= 1.5;
-  if (minister("fullhouse")) m *= 2;
+  if (minister("majority")) m *= 1.25;
+  if (minister("fullhouse")) m *= 1.5;
   if (perk("root")) m *= 1.1;
   if (perk("machine")) m *= 1 + 0.02 * BUILDINGS.filter((b) => state.buildings[b.id] > 0).length;
   if (perk("movement")) m *= 1.5;
   if (perk("eternal")) m *= 3;
-  if (minister("space")) m *= 2;
-  if (minister("everything")) m *= 3;
+  if (minister("space")) m *= 1.5;
+  if (minister("everything")) m *= 2;
   m *= 1 + 0.1 * mandate("majority");
-  m *= 1 + 0.25 * (state.heritageTotal || 0);
-  m *= Math.pow(1.5, state.era || 0);
-  if (eraPerk("goldenage")) m *= 5;
-  if (eraPerk("legend")) m *= 10;
+  m *= heritageFactor();
+  if (eraPerk("goldenage")) m *= 3;
+  if (eraPerk("legend")) m *= 5;
   return m;
 }
 function buffMult(key) {
@@ -159,7 +168,7 @@ function recalc() {
       const u = UPG_BY_ID[id];
       if (!u || u.target !== b.id) continue;
       if (u.kind === "building") mult *= u.value;
-      if (u.kind === "synergy") mult *= 1 + u.value * state.buildings[u.source];
+      if (u.kind === "synergy") mult *= 1 + u.value * Math.min(100, state.buildings[u.source]);
     }
     if (perk("door") && (b.id === "volunteer" || b.id === "falafel")) mult *= 2;
     const each = b.vps * mult * g;
@@ -183,15 +192,24 @@ function recalc() {
   cache.clickPower = (click * Math.sqrt(g) + clickVpsFrac * cache.vps) * buffMult("clickMult") * (rallyActive() ? RALLY_CLICK_MULT : 1);
 }
 
+const MAX_NUM = 1e300;
 function earn(n) {
+  if (!(n > 0)) return;
+  if (!isFinite(n)) n = MAX_NUM;
   state.votes += n;
   state.totalVotes += n;
   state.allTimeVotes += n;
   state.lifetimeVotes = (state.lifetimeVotes || 0) + n;
+  if (!(state.votes < MAX_NUM)) state.votes = MAX_NUM;
+  if (!(state.totalVotes < MAX_NUM)) state.totalVotes = MAX_NUM;
+  if (!(state.allTimeVotes < MAX_NUM)) state.allTimeVotes = MAX_NUM;
+  if (!(state.lifetimeVotes < MAX_NUM)) state.lifetimeVotes = MAX_NUM;
 }
 
 const seatMult = () => (eraPerk("century") ? 2 : 1);
-const seatsTotalFor = (allTime) => Math.floor(Math.sqrt(allTime / 1e9)) * seatMult();
+// Seats grow with the cube root of this Era's votes: 1 seat at 1e11, 10 at 1e14, 120 at ~1.7e17
+const SEAT_BASE = 1e11;
+const seatsTotalFor = (allTime) => Math.floor(Math.cbrt(allTime / SEAT_BASE)) * seatMult();
 const seatsGainable = () => Math.max(0, seatsTotalFor(state.allTimeVotes) - state.seats);
 const offlineRate = () => Math.min(2.25, 0.5 + (has("offline_0") ? 0.25 : 0) + (minister("tourism") ? 0.25 : 0) + (perk("nightowl") ? 0.25 : 0) + (eraPerk("mythic") ? 1 : 0));
 const mediaBoost = () => 1 + 0.2 * mandate("media");
@@ -253,7 +271,9 @@ function refreshTooltip() {
 document.addEventListener("touchstart", () => hideTooltip(), { passive: true });
 
 // ---------- toasts ----------
+let simQuiet = false; // set by the balance simulator
 function toast(title, body, icon = "ballot", kind = "") {
+  if (simQuiet) return;
   const t = document.createElement("div");
   t.className = `toast ${kind}`;
   t.innerHTML = `<img src="${ICON(icon)}" alt=""><div><div class="toast-title"></div><div class="toast-body"></div></div>`;
@@ -298,6 +318,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !els.mod
 
 // ---------- confetti ----------
 function confetti(n = 120) {
+  if (simQuiet) return;
   const colors = themeObj().confetti;
   for (let i = 0; i < n; i++) {
     const p = document.createElement("i");
@@ -711,8 +732,8 @@ function renderKnesset() {
   const gain = seatsGainable();
   els.seatsHeld.textContent = fmt(state.seats);
   els.seatsGain.textContent = `+${fmt(gain)}`;
-  const nextBase = Math.floor(Math.sqrt(state.allTimeVotes / 1e9)) + 1;
-  els.seatsNext.textContent = `Next ${seatMult() > 1 ? `${seatMult()} seats` : "seat"} after ${fmtBig(Math.max(0, nextBase * nextBase * 1e9 - state.allTimeVotes))} more votes (this Era).`
+  const nextBase = Math.floor(Math.cbrt(state.allTimeVotes / SEAT_BASE)) + 1;
+  els.seatsNext.textContent = `Next ${seatMult() > 1 ? `${seatMult()} seats` : "seat"} after ${fmtBig(Math.max(0, Math.pow(nextBase, 3) * SEAT_BASE - state.allTimeVotes))} more votes (this Era).`
     + (state.seats >= 120 ? " The Knesset only has 120 seats, but who's counting?" : "");
   els.btnElection.disabled = gain < 1;
   els.btnElection.textContent = gain >= 1 ? `Call Early Elections (+${fmt(gain)} seats)` : "Not enough votes for a new seat yet";
@@ -735,7 +756,7 @@ function callElection() {
   showModal({
     icon: "chair",
     title: "Call early elections?",
-    body: `<p>You'll win <b>${fmt(gain)}</b> new Knesset ${gain === 1 ? "seat" : "seats"} (+${fmt(gain * seatBonus() * 100)}% production, permanently) and <b>${fmt(gain)}</b> Political Capital to spend in the Legacy Tree.</p>
+    body: `<p>You'll win <b>${fmt(gain)}</b> new Knesset ${gain === 1 ? "seat" : "seats"} (production ×${seatFactor().toFixed(2)} → ×${seatFactor(state.seats + gain).toFixed(2)}, permanently) and <b>${fmt(gain)}</b> Political Capital to spend in the Legacy Tree.</p>
       ${newMinisters.length ? `<p>New ministers: <b>${newMinisters.map((m) => m.name).join(", ")}</b>.</p>` : ""}
       <p class="muted">You'll lose this term's votes, buildings and upgrades. Seats, awards and ministers stay.</p>`,
     actions: [
@@ -920,9 +941,12 @@ function buyMandate(m) {
 // ======================================================================
 // Eras (top prestige layer)
 // ======================================================================
-const eraGain = () => (state.seats >= ERA_SEATS ? Math.floor(state.seats / 40) : 0);
+// Heritage ever earned = cube root of career votes / 1e18. A new Era pays the difference.
+const HERITAGE_BASE = 1e18;
+const heritageFor = (lifetime) => Math.floor(Math.cbrt(Math.max(0, lifetime) / HERITAGE_BASE));
+const eraGain = () => (state.seats >= ERA_SEATS ? Math.max(0, heritageFor(state.lifetimeVotes || 0) - (state.heritageTotal || 0)) : 0);
 const perkEls = {};
-const eraMult = () => (1 + 0.25 * (state.heritageTotal || 0)) * Math.pow(1.5, state.era || 0);
+const eraMult = () => heritageFactor();
 function buildEra() {
   const box = $("era-perks");
   if (!box) return;
@@ -944,7 +968,11 @@ function renderEra() {
   $("heritage-bonus").textContent = `×${eraMult().toFixed(2)} production`;
   const btn = $("btn-era");
   btn.disabled = gain < 1;
-  btn.textContent = gain >= 1 ? `Begin a new Era (+${fmt(gain)} Heritage)` : `Needs ${ERA_SEATS} Knesset seats (you have ${fmt(state.seats)})`;
+  const nextH = (state.heritageTotal || 0) + 1;
+  const needed = Math.max(0, Math.pow(nextH, 3) * HERITAGE_BASE - (state.lifetimeVotes || 0));
+  btn.textContent = gain >= 1 ? `Begin a new Era (+${fmt(gain)} Heritage)`
+    : state.seats < ERA_SEATS ? `Needs ${ERA_SEATS} Knesset seats (you have ${fmt(state.seats)})`
+    : `Next Heritage after ${fmtBig(needed)} more career votes`;
   ERA_PERKS.forEach((p) => {
     const e = perkEls[p.id], owned = eraPerk(p.id);
     e.card.classList.toggle("owned", owned);
@@ -970,7 +998,7 @@ function beginEra() {
     title: "Begin a new Era?",
     body: (() => {
       const now = eraMult();
-      const next = (1 + 0.25 * ((state.heritageTotal || 0) + gain)) * Math.pow(1.5, (state.era || 0) + 1);
+      const next = heritageFactor((state.heritageTotal || 0) + gain);
       return `<p>You'll earn <b>${fmt(gain)}</b> Heritage. Era bonuses go from <b>×${now.toFixed(2)}</b> to <b>×${next.toFixed(2)}</b> production, forever, and you can spend Heritage on Era perks.</p>
       <p class="muted small">Resets: this term, Knesset seats and Ministers, Political Capital${eraPerk("memory") ? "" : ", Endless Mandates"}.<br>
       Keeps: your Legacy Tree, awards, Heritage, Era perks, themes, your account and your career vote total.</p>`;
@@ -1194,7 +1222,7 @@ function renderStats() {
     ["Cabinet Decisions", fmt(state.decisions)],
     ["Breaking News clicked", fmt(state.newsClicked)],
     ["Elections called", fmt(state.elections)],
-    ["Knesset seats", `${fmt(state.seats)} (+${fmt(state.seats * seatBonus() * 100)}%)`],
+    ["Knesset seats", `${fmt(state.seats)} (×${seatFactor().toFixed(2)} production)`],
     ["Political Capital", `${fmt(state.pc || 0)} to spend · ${(state.tree || []).length}/${TREE.length} nodes`],
     ["Awards", `${state.achievements.length} (+${state.achievements.length}%)`],
     ["Offline production", `${Math.round(offlineRate() * 100)}%`],
@@ -1333,7 +1361,9 @@ function deserialize(str) {
     s.pc = (s.pc || 0) + (data.era || 0) * 25;
     s.eraCompensated = true;
   }
-  s.version = 3;
+  // Saves far along under the old (much faster) balance get a one-time offer of a fresh season
+  if ((data.version || 2) < 4 && ((s.lifetimeVotes || 0) > 1e24 || (s.era || 0) >= 3 || (s.seats || 0) > 1000)) s.offerSeason = true;
+  s.version = 4;
   s.mandates = Object.fromEntries(Object.entries(data.mandates || {}).filter(([k, v]) => MANDATE_BY_ID[k] && v > 0));
   s.eraPerks = (data.eraPerks || []).filter((id) => ERA_PERK_BY_ID[id]);
   s.goals = Array.isArray(data.goals) ? data.goals.filter((g) => g && g.type && g.target) : [];
@@ -1671,6 +1701,97 @@ function syncMapActive() {
 }
 
 // ======================================================================
+// Balance simulator (dev tool): plays the real economy at high speed.
+// Used by tools/balance-sim.cjs; does nothing unless called.
+// ======================================================================
+function makeSim() {
+  return {
+    quiet() { simQuiet = true; map = null; badge = null; flagBg = null; },
+    tick(sec, cps = 2) {
+      recalc();
+      const clickGain = cache.clickPower * cps * sec;
+      earn(cache.vps * sec + clickGain);
+      state.clicks += Math.round(cps * sec);
+      state.clickVotes += clickGain;
+      if (cache.vps > state.bestVps) state.bestVps = cache.vps;
+    },
+    buy() {
+      for (let g = 0; g < 2000; g++) {
+        const ups = availableUpgrades().filter((u) => state.votes >= upgradeCost(u));
+        if (!ups.length) break;
+        state.votes -= upgradeCost(ups[0]);
+        state.upgrades.push(ups[0].id);
+        recalc();
+      }
+      for (let g = 0; g < 5000; g++) {
+        let best = null, bestScore = Infinity;
+        BUILDINGS.forEach((b, i) => {
+          if (!isBuildingVisible(i)) return;
+          const c = buildingCost(b, 1), e = Math.max(cache.perBuilding[b.id].each, 1e-12);
+          const score = c / e + Math.max(0, c - state.votes) / Math.max(cache.vps, 1);
+          if (score < bestScore) { bestScore = score; best = b; }
+        });
+        if (!best) break;
+        const c = buildingCost(best, 1);
+        if (state.votes < c) break;
+        state.votes -= c;
+        state.buildings[best.id]++;
+        recalc();
+      }
+    },
+    elect(ratio = 1) {
+      const gain = seatsGainable();
+      if (gain < 1 || gain < state.seats * ratio) return false;
+      doElection(gain);
+      this.spend();
+      return true;
+    },
+    spend() {
+      for (let g = 0; g < 200; g++) {
+        const n = TREE.filter((x) => !perk(x.id) && parentsOwned(x) && state.pc >= x.cost).sort((a, b) => a.cost - b.cost)[0];
+        if (!n) break;
+        state.pc -= n.cost; state.tree.push(n.id);
+      }
+      for (let g = 0; g < 2000; g++) {
+        const m = MANDATES.filter((x) => mandate(x.id) < x.max && state.pc >= mandateCost(x)).sort((a, b) => mandateCost(a) - mandateCost(b))[0];
+        if (!m) break;
+        state.pc -= mandateCost(m); state.mandates[m.id] = mandate(m.id) + 1;
+      }
+      for (let g = 0; g < 50; g++) {
+        const p = ERA_PERKS.filter((x) => !eraPerk(x.id) && (state.heritage || 0) >= x.cost).sort((a, b) => a.cost - b.cost)[0];
+        if (!p) break;
+        state.heritage -= p.cost; state.eraPerks.push(p.id);
+      }
+      recalc();
+    },
+    era(ratio = 1) {
+      const gain = eraGain();
+      if (gain < 1 || gain < (state.heritageTotal || 0) * ratio) return false;
+      doEra(gain);
+      this.spend();
+      return true;
+    },
+    breakdown() {
+      let globalSum = 1;
+      for (const id of state.upgrades) { const u = UPG_BY_ID[id]; if (u && u.kind === "global") globalSum += u.value; }
+      const owned = BUILDINGS.filter((b) => state.buildings[b.id] > 0);
+      const avgBld = owned.length ? Math.exp(owned.reduce((a, b) => a + Math.log(cache.perBuilding[b.id].mult), 0) / owned.length) : 1;
+      return {
+        vps: cache.vps, globalMult: cache.globalMult, upgradesSum: globalSum, seats: seatFactor(),
+        awards: 1 + state.achievements.length * ACH_BONUS, heritage: eraMult(), mandateMajority: 1 + 0.1 * mandate("majority"),
+        avgBuildingUpgradeMult: avgBld, buildingsOwned: Object.values(state.buildings).reduce((a, b) => a + b, 0),
+        clickShare: (cache.clickPower * 2) / Math.max(1, cache.vps + cache.clickPower * 2), pc: state.pc, seatsN: state.seats, H: state.heritageTotal,
+      };
+    },
+    info() {
+      const top = BUILDINGS.filter((b) => state.buildings[b.id] > 0).pop();
+      return { vps: cache.vps, seats: state.seats, era: state.era || 0, heritage: state.heritageTotal || 0, pc: state.pc,
+        lifetime: state.lifetimeVotes, top: top ? top.id : null, upgrades: state.upgrades.length, tree: state.tree.length };
+    },
+  };
+}
+
+// ======================================================================
 // Wire up
 // ======================================================================
 function setTab(tab) {
@@ -1710,6 +1831,27 @@ function init() {
   setInterval(save, 10000);
   window.addEventListener("beforeunload", () => save());
   document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
+  if (state.offerSeason) {
+    delete state.offerSeason;
+    setTimeout(() => showModal({
+      icon: "crown",
+      title: "The game has been rebalanced",
+      body: `<p>Progress was far too fast, so the late game now takes much longer and there's a lot more to reach.</p>
+        <p>Your save is already past the new curve. Start a <b>fresh season</b> on the new balance? You keep your awards and settings, and your current save is backed up (Options → Backups), so you can switch back anytime.</p>`,
+      actions: [
+        { label: "Start a fresh season", cls: "btn-primary", onClick: () => {
+          snapshot("Before starting a fresh season");
+          const keep = { achievements: state.achievements, opts: state.opts, gameStart: state.gameStart };
+          state = Object.assign(freshState(), keep);
+          upgSignature = "";
+          recalc(); renderAll(); map && map.update(state.buildings); save();
+          account && account.soon();
+          toast("Fresh season!", "Good luck on the campaign trail. Your old save is in Backups.", "ballot", "gold");
+        } },
+        { label: "Keep my current save" },
+      ],
+    }), 1200);
+  }
   if (state.eraCompensated) {
     delete state.eraCompensated;
     setTimeout(() => toast("Eras got better!", "Eras now give much more Heritage and keep your Legacy Tree. You've been given extra Heritage and Political Capital for the Eras you already began.", "crown", "gold"), 2000);
@@ -1827,7 +1969,7 @@ function init() {
   init3D();
 
   // test/debug hook
-  window.__bibi = { get state() { return state; }, set state(s) { state = s; }, recalc, renderAll, spawnNews, offerDecision, startRally, save, snapshot, get account() { return account; }, get map() { return map; }, get badge() { return badge; } };
+  window.__bibi = { sim: makeSim(), get state() { return state; }, set state(s) { state = s; }, recalc, renderAll, spawnNews, offerDecision, startRally, save, snapshot, get account() { return account; }, get map() { return map; }, get badge() { return badge; } };
 }
 
 init();

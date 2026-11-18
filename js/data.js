@@ -123,6 +123,12 @@ export const BUILDINGS = [
     desc: "One ballot box for every vote that could ever be cast.",
     map: { scale: 1.1, cap: 1, orbit: { rad: 9, y: 36 } } },
 ];
+// Space age and beyond: each building is less cost-efficient than the last (about ×4.5 production
+// per ×15 cost), so huge multipliers can't skip through the late game.
+for (let i = BUILDINGS.findIndex((b) => b.id === "hologram"); i > 0 && i < BUILDINGS.length; i++) {
+  const prev = BUILDINGS[i - 1], b = BUILDINGS[i];
+  b.vps = Number((prev.vps * 4.5 * Math.pow(b.cost / prev.cost / 15, 0.6)).toPrecision(3));
+}
 export const BLD_BY_ID = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 
 // Tier upgrades: [name, owned needed, cost multiplier, frame]
@@ -249,7 +255,7 @@ BUILDINGS.forEach((b) => {
 ].forEach(([name, target, source, per, req, cost, flavor], i) => {
   UPGRADES.push({
     id: `synergy_${i}`, name, icon: target, badge: source, frame: "synergy", cost, flavor,
-    desc: `${BLD_BY_ID[target].name}s gain <b>+${Math.round(per * 100)}%</b> for every ${BLD_BY_ID[source].name} you own.`,
+    desc: `${BLD_BY_ID[target].name}s gain <b>+${Math.round(per * 1000) / 10}%</b> for every ${BLD_BY_ID[source].name} you own (up to 100).`,
     unlock: (s) => s.buildings[target] >= req && s.buildings[source] >= req,
     kind: "synergy", target, source, value: per,
   });
@@ -286,12 +292,12 @@ export const MINISTERS = [
   { seats: 10, id: "transport", name: "Minister of Transport", icon: "startup", desc: "All buildings are <b>5% cheaper</b>." },
   { seats: 20, id: "culture", name: "Minister of Culture", icon: "hora", desc: "Rallies last <b>50% longer</b>." },
   { seats: 40, id: "education", name: "Minister of Education", icon: "branch", desc: "Start each new term with <b>10 Volunteers and 5 Falafel Stands</b>." },
-  { seats: 61, id: "majority", name: "Coalition Majority", icon: "chair", desc: "All production <b>×1.5</b>." },
+  { seats: 61, id: "majority", name: "Coalition Majority", icon: "chair", desc: "All production <b>+25%</b>." },
   { seats: 90, id: "science", name: "Minister of Science", icon: "bulb", desc: "All upgrades are <b>10% cheaper</b>." },
-  { seats: 120, id: "fullhouse", name: "Full House", icon: "crown", desc: "All production <b>×2</b>." },
-  { seats: 200, id: "space", name: "Minister of Space", icon: "moonbase", desc: "All production <b>×2</b>." },
+  { seats: 120, id: "fullhouse", name: "Full House", icon: "crown", desc: "All production <b>+50%</b>." },
+  { seats: 200, id: "space", name: "Minister of Space", icon: "moonbase", desc: "All production <b>+50%</b>." },
   { seats: 500, id: "time", name: "Minister of Time", icon: "clock", desc: "Offline production lasts up to <b>24 hours</b> instead of 12." },
-  { seats: 1000, id: "everything", name: "Minister of Everything", icon: "multiverse", desc: "All production <b>×3</b>." },
+  { seats: 1000, id: "everything", name: "Minister of Everything", icon: "multiverse", desc: "All production <b>×2</b>." },
 ];
 
 // ---------- Legacy Tree (prestige) ----------
@@ -511,23 +517,22 @@ export const MANDATE_BY_ID = Object.fromEntries(MANDATES.map((m) => [m.id, m]));
 
 // ---------- Eras (top prestige layer) ----------
 // Begin a new Era once you hold a full Knesset (120 seats). It resets seats, Ministers, Political
-// Capital and Endless Mandates (the Legacy Tree is kept), and gives Heritage = floor(seats / 40).
-// Every Heritage point ever earned gives +25% production, every Era begun gives ×1.5 (compounding),
-// and Heritage is spent on Era perks.
+// Capital and Endless Mandates (the Legacy Tree is kept). Heritage ever earned = cbrt(career votes / 1e18);
+// a new Era pays the difference. Every Heritage point gives +10% production; spend it on Era perks.
 export const ERA_SEATS = 120;
 export const ERA_PERKS = [
   { id: "veterans", name: "Veteran Staff", icon: "volunteer", cost: 1, desc: "Start every term with <b>5 of each</b> of the first six buildings." },
   { id: "speechwriters", name: "Speechwriters' Guild", icon: "mic", cost: 2, desc: "Clicks are <b>×10</b>." },
-  { id: "oldguard", name: "Old Guard", icon: "briefcase", cost: 2, desc: "Ministers are appointed at <b>half</b> the seats." },
-  { id: "memory", name: "Institutional Memory", icon: "scroll", cost: 3, desc: "<b>Keep your Endless Mandate levels</b> when you begin a new Era." },
-  { id: "presscorps", name: "Press Corps", icon: "newspaper", cost: 3, desc: "Breaking News and Cabinet Decisions come <b>twice as often</b>." },
-  { id: "flame", name: "Eternal Flame", icon: "candles", cost: 5, desc: "No rally cooldown, and the Rally meter fills <b>3× faster</b>." },
-  { id: "goldenage", name: "Golden Age", icon: "crown", cost: 8, desc: "All production <b>×5</b>." },
-  { id: "century", name: "Party of the Century", icon: "chair", cost: 12, desc: "Elections win <b>twice as many seats</b>." },
+  { id: "oldguard", name: "Old Guard", icon: "briefcase", cost: 3, desc: "Ministers are appointed at <b>half</b> the seats." },
+  { id: "memory", name: "Institutional Memory", icon: "scroll", cost: 5, desc: "<b>Keep your Endless Mandate levels</b> when you begin a new Era." },
+  { id: "presscorps", name: "Press Corps", icon: "newspaper", cost: 4, desc: "Breaking News and Cabinet Decisions come <b>twice as often</b>." },
+  { id: "flame", name: "Eternal Flame", icon: "candles", cost: 6, desc: "No rally cooldown, and the Rally meter fills <b>3× faster</b>." },
+  { id: "goldenage", name: "Golden Age", icon: "crown", cost: 15, desc: "All production <b>×3</b>." },
+  { id: "century", name: "Party of the Century", icon: "chair", cost: 30, desc: "Elections win <b>twice as many seats</b>." },
   { id: "coalitionforever", name: "Endless Coalition", icon: "coalition", cost: 20, desc: "Elections give <b>twice as much Political Capital</b>." },
-  { id: "goals", name: "Grand Strategist", icon: "scroll", cost: 25, desc: "Campaign Goal rewards are <b>tripled</b>." },
-  { id: "legend", name: "Legend Never Dies", icon: "star", cost: 40, desc: "All production <b>×10</b>." },
-  { id: "mythic", name: "Mythic Status", icon: "bigbang", cost: 75, desc: "Production while you're away <b>+100%</b>." },
+  { id: "goals", name: "Grand Strategist", icon: "scroll", cost: 10, desc: "Campaign Goal rewards are <b>tripled</b>." },
+  { id: "legend", name: "Legend Never Dies", icon: "star", cost: 60, desc: "All production <b>×5</b>." },
+  { id: "mythic", name: "Mythic Status", icon: "bigbang", cost: 100, desc: "Production while you're away <b>+100%</b>." },
 ];
 export const ERA_PERK_BY_ID = Object.fromEntries(ERA_PERKS.map((p) => [p.id, p]));
 
