@@ -351,6 +351,9 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
 .pcard-buy { padding: 6px 10px; font-size: 0.8rem; white-space: nowrap; }
 .pcard-buy:disabled { opacity: 0.55; cursor: not-allowed; }
 .era-btn { width: 100%; margin: 4px 0 10px; }
+.era-callout { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: linear-gradient(90deg, rgba(242, 183, 5, 0.18), transparent); border: 1px solid var(--gold); border-radius: 12px; padding: 8px 10px; }
+.era-callout img { width: 36px; height: 36px; }
+.era-callout span { flex: 1 1 160px; font-size: 0.9rem; }
 .era-btn:disabled { background: var(--seat-empty); border-color: var(--seat-empty); color: var(--muted); box-shadow: none; cursor: not-allowed; }
 
 /* ---------- campaign goals ---------- */

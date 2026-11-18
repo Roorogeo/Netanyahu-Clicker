@@ -1066,6 +1066,301 @@ function bigbang() {
   return g;
 }
 
+// ---------- mid-game buildings ----------
+function shuk() {
+  const g = new THREE.Group();
+  g.add(m(box(1.0, 0.08, 0.6), mat(C.woodLight), 0, 0.46, 0));
+  for (const x of [-0.45, 0.45]) for (const z of [-0.25, 0.25]) g.add(m(cyl(0.025, 0.025, 0.46, 6), mat(C.wood), x, 0.23, z));
+  const fruit = [["#f08a24", -0.32], ["#d64541", 0], ["#7cb342", 0.32]];
+  fruit.forEach(([c, x]) => {
+    g.add(m(box(0.28, 0.1, 0.4), mat(C.wood), x, 0.55, 0));
+    for (let i = 0; i < 6; i++) g.add(m(sph(0.055, 10, 8), mat(c, { roughness: 0.4 }), x - 0.07 + (i % 2) * 0.14, 0.63, -0.12 + Math.floor(i / 2) * 0.12));
+  });
+  for (const x of [-0.5, 0.5]) g.add(m(cyl(0.02, 0.02, 0.6, 6), metal(C.silver), x, 0.76, -0.28));
+  for (let i = 0; i < 6; i++) g.add(rot(m(box(0.18, 0.03, 0.7), mat(i % 2 ? "#ffffff" : "#e2652b"), -0.45 + i * 0.18, 1.06, 0.02), -0.3, 0, 0));
+  g.add(m(box(0.3, 0.2, 0.2), mat("#c98f55"), 0.6, 0.1, 0.15));
+  return g;
+}
+
+function bus() {
+  const g = new THREE.Group();
+  g.add(m(rbox(1.4, 0.5, 0.5, 0.08), mat(C.white), 0, 0.42, 0));
+  g.add(m(box(1.41, 0.1, 0.51), mat(C.blue), 0, 0.3, 0));
+  for (let i = 0; i < 5; i++) g.add(m(box(0.2, 0.16, 0.02), glow("#bfe3ff", 0.4), -0.5 + i * 0.25, 0.55, 0.255));
+  g.add(m(box(0.02, 0.26, 0.4), glow("#bfe3ff", 0.4), 0.705, 0.52, 0));
+  for (const x of [-0.45, 0.45]) for (const z of [-0.26, 0.26]) {
+    g.add(rot(m(cyl(0.11, 0.11, 0.06, 16), mat(C.dark), x, 0.14, z), Math.PI / 2, 0, 0));
+  }
+  const side = panel(signTex("VOTE", C.blue, "#fff"), 0.5, 0.14); side.position.set(-0.1, 0.36, 0.26); g.add(side);
+  g.add(m(box(0.3, 0.05, 0.14), mat(C.blue), 0, 0.7, 0));
+  g.add(m(sph(0.04, 8, 6), glow("#fff4c4", 1.6), 0.71, 0.3, 0.17));
+  g.add(m(sph(0.04, 8, 6), glow("#fff4c4", 1.6), 0.71, 0.3, -0.17));
+  return g;
+}
+
+function rooftop() {
+  const g = new THREE.Group();
+  g.add(m(rbox(1.0, 0.8, 0.8, 0.03), mat(C.stone), 0, 0.4, 0));
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) g.add(m(box(0.2, 0.16, 0.02), glow("#ffe7a8", 0.3), -0.3 + c * 0.3, 0.25 + r * 0.3, 0.405));
+  g.add(m(box(0.7, 0.08, 0.5), mat(C.wood), 0, 0.84, 0));
+  for (const x of [-0.42, 0.42]) {
+    g.add(m(box(0.16, 0.34, 0.16), mat(C.dark), x, 0.97, 0.1));
+    g.add(rot(m(cyl(0.05, 0.05, 0.02, 12), mat("#444"), x, 1.0, 0.185), Math.PI / 2, 0, 0));
+  }
+  const p = scl(person(C.blue), 0.6); p.position.set(0, 0.88, 0); g.add(p);
+  g.add(m(cyl(0.015, 0.015, 0.3, 6), metal(C.silver), 0.1, 1.05, 0.12));
+  const fp = flagPole(0.5, 0.24); fp.position.set(-0.3, 0.88, -0.2); g.add(fp);
+  return g;
+}
+
+function phonebank() {
+  const g = new THREE.Group();
+  g.add(m(box(1.2, 0.06, 0.5), mat(C.woodLight), 0, 0.5, 0));
+  for (const x of [-0.55, 0.55]) g.add(m(box(0.05, 0.5, 0.45), mat(C.wood), x, 0.25, 0));
+  for (let i = 0; i < 4; i++) {
+    const x = -0.42 + i * 0.28;
+    g.add(m(rbox(0.16, 0.06, 0.12, 0.02), mat(i % 2 ? C.dark : C.red), x, 0.56, 0.05));
+    g.add(rot(m(torus(0.06, 0.018, 6, 16, Math.PI), mat(i % 2 ? C.dark : C.red), x, 0.6, 0.05), 0, 0, 0));
+    g.add(m(rbox(0.2, 0.28, 0.04, 0.03), mat(C.blue), x, 0.36, -0.34));
+    g.add(m(box(0.2, 0.04, 0.2), mat(C.blue), x, 0.22, -0.24));
+  }
+  g.add(m(box(0.5, 0.2, 0.02), mat(C.white), 0, 0.9, -0.22));
+  const sign = panel(signTex("CALL", "#fff", C.blue), 0.48, 0.18); sign.position.set(0, 0.9, -0.208); g.add(sign);
+  g.add(m(cyl(0.012, 0.012, 0.36, 6), metal(C.silver), 0, 0.68, -0.22));
+  return g;
+}
+
+function studio() {
+  const g = new THREE.Group();
+  const scr = panel(canvasTex("studioScreen", 320, 180, (ctx, w, h) => {
+    const grd = ctx.createLinearGradient(0, 0, w, 0); grd.addColorStop(0, "#0038b8"); grd.addColorStop(1, "#00248a");
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#fff"; ctx.font = "900 40px Arial Black, sans-serif"; ctx.fillText("RESULTS", 20, 60);
+    [0.72, 0.48, 0.3].forEach((v, i) => { ctx.fillStyle = ["#f2b705", "#7fa6f5", "#cbd5e1"][i]; ctx.fillRect(20, 80 + i * 30, (w - 40) * v, 20); });
+  }), 1.1, 0.62, true);
+  scr.material.emissiveIntensity = 0.8;
+  scr.position.set(0, 0.85, -0.3); g.add(scr);
+  g.add(m(box(1.16, 0.68, 0.04), mat(C.dark), 0, 0.85, -0.33));
+  g.add(m(geo("studioDesk", () => new THREE.CylinderGeometry(0.6, 0.6, 0.36, 24, 1, false, -Math.PI / 2.4, Math.PI / 1.2)), mat(C.white), 0, 0.18, 0.15));
+  g.add(m(box(0.9, 0.04, 0.3), mat(C.blue), 0, 0.37, 0.25));
+  const cam = group(m(rbox(0.22, 0.16, 0.3, 0.03), mat(C.dark), 0, 0, 0), rot(m(cyl(0.06, 0.07, 0.12, 14), mat("#333"), 0, 0, 0.2), Math.PI / 2, 0, 0));
+  cam.position.set(0.55, 0.62, 0.55); cam.rotation.y = 0.7; g.add(cam);
+  for (const a of [0, 2.1, 4.2]) g.add(rot(m(cyl(0.012, 0.012, 0.6, 6), metal(C.silver), 0.55 + Math.cos(a) * 0.08, 0.28, 0.55 + Math.sin(a) * 0.08), Math.cos(a) * 0.25, 0, Math.sin(a) * 0.25));
+  const light = m(sph(0.05, 8, 6), glow(C.red, 2), 0.42, 0.72, 0.5); light.userData.blink = true; g.add(light);
+  return g;
+}
+
+function tower() {
+  const g = new THREE.Group();
+  const glass = mat("#7fb3e8", { metalness: 0.6, roughness: 0.12 });
+  g.add(m(rbox(0.5, 1.6, 0.5, 0.04), glass, 0, 0.8, 0));
+  for (let i = 1; i < 8; i++) g.add(m(box(0.52, 0.02, 0.52), mat(C.silver), 0, i * 0.2, 0));
+  g.add(m(rbox(0.36, 0.3, 0.36, 0.03), glass, 0, 1.75, 0));
+  g.add(m(cyl(0.012, 0.012, 0.5, 6), metal(C.silver), 0, 2.15, 0));
+  const tip = m(sph(0.03, 8, 6), glow(C.red, 2), 0, 2.4, 0); tip.userData.blink = true; g.add(tip);
+  const logo = panel(signTex("TECH", C.blue, "#fff"), 0.4, 0.14, true); logo.position.set(0, 1.45, 0.256); g.add(logo);
+  g.add(m(box(0.8, 0.06, 0.8), mat(C.stoneDark), 0, 0.03, 0));
+  return g;
+}
+
+function train() {
+  const g = new THREE.Group();
+  for (const z of [-0.12, 0.12]) g.add(m(box(1.6, 0.03, 0.03), metal(C.silver), 0, 0.04, z));
+  for (let i = 0; i < 8; i++) g.add(m(box(0.06, 0.03, 0.36), mat(C.wood), -0.7 + i * 0.2, 0.02, 0));
+  const car = (x, color, loco) => {
+    const c = group(m(rbox(0.5, 0.32, 0.3, 0.06), mat(color), 0, 0.26, 0));
+    c.add(m(box(0.51, 0.06, 0.31), mat(C.blue), 0, 0.2, 0));
+    for (let i = 0; i < 3; i++) c.add(m(box(0.1, 0.1, 0.01), glow("#cfe8ff", 0.4), -0.15 + i * 0.15, 0.32, 0.152));
+    for (const wx of [-0.15, 0.15]) for (const wz of [-0.13, 0.13]) c.add(rot(m(cyl(0.05, 0.05, 0.03, 12), mat(C.dark), wx, 0.08, wz), Math.PI / 2, 0, 0));
+    if (loco) {
+      const nose = m(geo("nose", () => new THREE.SphereGeometry(0.15, 16, 10, 0, Math.PI)), mat(color), 0.25, 0.26, 0);
+      nose.rotation.y = Math.PI / 2;
+      c.add(nose);
+    }
+    c.position.x = x;
+    return c;
+  };
+  g.add(car(0.52, C.white, true));
+  g.add(car(-0.02, C.white));
+  g.add(car(-0.56, C.white));
+  return g;
+}
+
+function cruise() {
+  const g = new THREE.Group();
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.7, 0); shape.lineTo(0.55, 0); shape.lineTo(0.8, 0.22); shape.lineTo(-0.75, 0.22); shape.closePath();
+  const hull = m(geo("hull", () => new THREE.ExtrudeGeometry(shape, { depth: 0.4, bevelEnabled: false })), mat(C.white), 0, 0, -0.2);
+  g.add(hull);
+  g.add(m(box(1.5, 0.05, 0.41), mat(C.blue), 0.02, 0.06, 0));
+  for (let d = 0; d < 3; d++) {
+    const w = 1.1 - d * 0.25;
+    g.add(m(box(w, 0.14, 0.34 - d * 0.04), mat(C.white), -0.05 - d * 0.05, 0.3 + d * 0.14, 0));
+    for (let i = 0; i < Math.floor(w / 0.12); i++) g.add(m(box(0.06, 0.05, 0.01), glow("#cfe8ff", 0.4), -0.05 - d * 0.05 - w / 2 + 0.08 + i * 0.12, 0.31 + d * 0.14, 0.172 - d * 0.02));
+  }
+  g.add(m(cyl(0.08, 0.1, 0.24, 14), mat(C.blue), -0.2, 0.8, 0));
+  g.add(m(cyl(0.081, 0.081, 0.05, 14), mat(C.white), -0.2, 0.86, 0));
+  const fp = flagPole(0.35, 0.18); fp.position.set(0.5, 0.36, 0); g.add(fp);
+  const water = m(cyl(0.95, 0.95, 0.03, 32), mat(C.water, { transparent: true, opacity: 0.8, roughness: 0.15 }), 0, 0.01, 0);
+  const g2 = new THREE.Group(); g.position.y = 0.04; g2.add(water); g2.add(g);
+  return g2;
+}
+
+// ---------- deep-space buildings ----------
+function blackhole() {
+  const g = new THREE.Group();
+  g.add(m(sph(0.3, 32, 24), mat("#050505", { roughness: 0.2, metalness: 0.5 }), 0, 0.85, 0));
+  const disk = m(geo("accretion", () => new THREE.RingGeometry(0.36, 0.72, 64)), new THREE.MeshStandardMaterial({
+    map: canvasTex("accretionTex", 256, 256, (ctx, w, h) => {
+      const grd = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w / 2);
+      grd.addColorStop(0, "#fff3c4"); grd.addColorStop(0.4, "#ff9d2e"); grd.addColorStop(1, "rgba(120,20,0,0)");
+      ctx.fillStyle = grd; ctx.fillRect(0, 0, w, h);
+    }), emissive: "#ff8a2b", emissiveIntensity: 1.2, transparent: true, side: THREE.DoubleSide, depthWrite: false,
+  }), 0, 0.85, 0);
+  disk.rotation.x = Math.PI / 2 - 0.35; disk.userData.spinZ = 1.2;
+  g.add(disk);
+  g.add(m(cyl(0.32, 0.38, 0.12, 24), metal(C.greyDark), 0, 0.06, 0));
+  g.add(m(box(0.18, 0.3, 0.12), mat(C.blue), 0, 0.27, 0.15));
+  g.add(m(cyl(0.012, 0.012, 0.18, 6), metal(C.silver), 0, 0.5, 0.15));
+  return g;
+}
+
+function nebula() {
+  const g = new THREE.Group();
+  const cols = ["#ff4fd8", "#7c3aed", "#22d3ee", "#f97316", "#3b82f6"];
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.39, r = 0.18 + (i % 3) * 0.14;
+    const cloud = m(sph(0.22 + (i % 2) * 0.08, 16, 12), new THREE.MeshStandardMaterial({ color: cols[i % cols.length], emissive: cols[i % cols.length], emissiveIntensity: 0.6, transparent: true, opacity: 0.45, depthWrite: false }), Math.cos(a) * r, 0.8 + Math.sin(i) * 0.2, Math.sin(a) * r);
+    g.add(cloud);
+  }
+  for (let i = 0; i < 14; i++) g.add(m(sph(0.022, 6, 4), glow("#ffffff", 2.2), Math.cos(i * 1.7) * 0.55, 0.5 + (i % 5) * 0.14, Math.sin(i * 1.3) * 0.5));
+  g.children.forEach((c) => { c.userData.bob = Math.random() * 6; });
+  g.add(m(cyl(0.3, 0.36, 0.06, 24), metal(C.greyDark), 0, 0.03, 0));
+  return g;
+}
+
+function timemachine() {
+  const g = new THREE.Group();
+  g.add(m(cyl(0.5, 0.56, 0.1, 32), metal(C.greyDark), 0, 0.05, 0));
+  const face = clock();
+  face.scale.setScalar(0.7); face.position.y = 0.32;
+  g.add(face);
+  for (let i = 0; i < 3; i++) {
+    const r = m(torus(0.5 + i * 0.06, 0.02, 8, 48), metal(i === 1 ? C.gold : "#b87333", 0.25), 0, 0.74, 0);
+    r.rotation.set(i * 0.9, i * 0.6, 0); r.userData.spin = 0.4 + i * 0.3;
+    g.add(r);
+  }
+  return g;
+}
+
+function alienembassy() {
+  const g = new THREE.Group();
+  g.add(scl(m(sph(0.6, 32, 16), metal(C.silver, 0.25), 0, 0.62, 0), 1, 0.25, 1));
+  g.add(m(geo("ufoDome", () => new THREE.SphereGeometry(0.28, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2)), new THREE.MeshPhysicalMaterial({ color: "#a7f3d0", transparent: true, opacity: 0.55, roughness: 0.05 }), 0, 0.7, 0));
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; g.add(m(sph(0.035, 8, 6), glow(i % 2 ? "#4ade80" : "#facc15", 2), Math.cos(a) * 0.55, 0.6, Math.sin(a) * 0.55)); }
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; g.add(rot(m(cyl(0.02, 0.03, 0.5, 6), metal(C.greyDark), Math.cos(a) * 0.35, 0.3, Math.sin(a) * 0.35), Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3)); }
+  const alien = person("#7c3aed", { skin: "#7ee081", hair: "#7ee081", pants: "#5b21b6" });
+  alien.children[3].scale.setScalar(1.4);
+  alien.scale.setScalar(0.42); alien.position.set(0, 0.62, 0);
+  g.add(alien);
+  return g;
+}
+
+function starforge() {
+  const g = new THREE.Group();
+  g.add(m(box(0.9, 0.12, 0.5), metal(C.greyDark), 0, 0.06, 0));
+  for (const x of [-0.3, 0.3]) g.add(rot(m(cyl(0.12, 0.12, 0.46, 20), metal(C.silver, 0.3), x, 0.3, 0), Math.PI / 2, 0, 0));
+  g.add(m(box(0.9, 0.02, 0.4), mat(C.paper), 0, 0.43, 0));
+  const star = starMesh(C.gold, 0.08); star.scale.setScalar(0.55); star.position.set(0, 0.85, -0.04); star.userData.spin = 1.2;
+  g.add(star);
+  g.add(m(sph(0.18, 16, 12), new THREE.MeshBasicMaterial({ color: "#ffd56a", transparent: true, opacity: 0.35, depthWrite: false }), 0, 0.85, 0));
+  for (let i = 0; i < 3; i++) g.add(rot(m(box(0.3, 0.005, 0.4), mat(C.paper), -0.55 + i * 0.05, 0.15 + i * 0.03, 0.05), 0, 0, 0.2));
+  return g;
+}
+
+function parade() {
+  const g = new THREE.Group();
+  g.add(m(rbox(1.0, 0.16, 0.6, 0.05), mat(C.blue), 0, 0.14, 0));
+  for (const x of [-0.35, 0.35]) for (const z of [-0.3, 0.3]) g.add(rot(m(cyl(0.08, 0.08, 0.05, 12), mat(C.dark), x, 0.07, z), Math.PI / 2, 0, 0));
+  const cols = ["#ff4fd8", "#22d3ee", "#facc15", "#4ade80", "#f97316", "#a855f7"];
+  cols.forEach((c, i) => {
+    const x = -0.38 + i * 0.15, h = 0.75 + (i % 3) * 0.18;
+    g.add(m(cyl(0.004, 0.004, h - 0.2, 4), mat("#ddd"), x, 0.22 + (h - 0.2) / 2, 0));
+    const bal = scl(m(sph(0.1, 14, 12), mat(c, { roughness: 0.25 }), x, h + 0.1, 0), 1, 1.2, 1);
+    bal.userData.bob = i;
+    g.add(bal);
+  });
+  const ban = panel(signTex("PARADE", "#fff", C.blue), 0.8, 0.2); ban.position.set(0, 0.32, 0.305); g.add(ban);
+  return g;
+}
+
+function pocketuniverse() {
+  const g = new THREE.Group();
+  g.add(m(cyl(0.22, 0.3, 0.12, 24), metal(C.gold, 0.3), 0, 0.06, 0));
+  g.add(m(sph(0.5, 32, 24), new THREE.MeshPhysicalMaterial({ color: "#dbeafe", transparent: true, opacity: 0.25, roughness: 0.02, metalness: 0.1 }), 0, 0.62, 0));
+  const isle = group(m(cyl(0.2, 0.15, 0.08, 16), mat(C.greenLight), 0, 0, 0), m(cone(0.12, 0.12, 12), mat("#8d7a63"), 0, -0.1, 0));
+  isle.children[1].rotation.x = Math.PI;
+  isle.add(m(cyl(0.008, 0.008, 0.2, 4), metal(C.silver), 0, 0.13, 0));
+  isle.add(m(box(0.08, 0.055, 0.004), mat(C.blue), 0.04, 0.2, 0));
+  isle.position.y = 0.55; isle.userData.spin = 0.4;
+  g.add(isle);
+  for (let i = 0; i < 12; i++) g.add(m(sph(0.012, 6, 4), glow("#ffffff", 2), Math.cos(i * 2.1) * 0.35, 0.62 + Math.sin(i * 1.3) * 0.3, Math.sin(i * 1.7) * 0.3));
+  return g;
+}
+
+function cosmicstring() {
+  const g = new THREE.Group();
+  g.add(m(box(0.8, 0.08, 0.3), metal(C.gold, 0.3), 0, 0.04, 0));
+  g.add(m(box(0.08, 1.2, 0.08), metal(C.gold, 0.3), -0.36, 0.64, 0));
+  g.add(rot(m(torus(0.42, 0.04, 8, 32, Math.PI * 0.7), metal(C.gold, 0.3), 0.0, 1.0, 0), 0, 0, Math.PI * 0.12));
+  const cols = ["#ff4fd8", "#a855f7", "#3b82f6", "#22d3ee", "#4ade80", "#facc15", "#f97316"];
+  cols.forEach((c, i) => {
+    const h = 1.0 - i * 0.08;
+    const str = m(cyl(0.008, 0.008, h, 4), glow(c, 2.2), -0.28 + i * 0.09, 0.08 + h / 2, 0);
+    str.userData.pulse = true;
+    g.add(str);
+  });
+  return g;
+}
+
+function realityeditor() {
+  const g = new THREE.Group();
+  const scr = panel(canvasTex("editScreen", 320, 200, (ctx, w, h) => {
+    ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#1e293b"; ctx.fillRect(0, 0, w, 26);
+    ["#ef4444", "#f59e0b", "#22c55e"].forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(16 + i * 18, 13, 6, 0, 7); ctx.fill(); });
+    ctx.font = "700 22px monospace";
+    ctx.fillStyle = "#7dd3fc"; ctx.fillText("reality.edit(", 16, 70);
+    ctx.fillStyle = "#fde047"; ctx.fillText(" winner: \"you\"", 16, 105);
+    ctx.fillStyle = "#7dd3fc"; ctx.fillText(")", 16, 140);
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(40, 155, 14, 26);
+  }), 1.0, 0.62, true);
+  scr.material.emissiveIntensity = 0.9;
+  scr.position.set(0, 0.95, 0.03);
+  g.add(m(rbox(1.08, 0.7, 0.06, 0.03), mat(C.dark), 0, 0.95, 0));
+  g.add(scr);
+  g.add(m(cyl(0.04, 0.04, 0.5, 8), metal(C.silver), 0, 0.38, -0.02));
+  g.add(m(cyl(0.3, 0.34, 0.06, 24), metal(C.greyDark), 0, 0.03, 0));
+  const pencil = group(m(cyl(0.05, 0.05, 0.7, 6), mat(C.gold), 0, 0, 0), m(cone(0.05, 0.14, 6), mat("#f3d6a4"), 0, -0.42, 0), m(cyl(0.052, 0.052, 0.1, 6), mat(C.pink), 0, 0.38, 0));
+  pencil.position.set(0.62, 0.7, 0.2); pencil.rotation.z = 0.6;
+  g.add(pencil);
+  return g;
+}
+
+function omniverse() {
+  const g = new THREE.Group();
+  const bb = ballotBox();
+  bb.scale.setScalar(0.85);
+  g.add(bb);
+  for (let i = 0; i < 3; i++) {
+    const r = m(torus(0.62 + i * 0.08, 0.018, 6, 48), glow(["#facc15", "#22d3ee", "#ff4fd8"][i], 1.6), 0, 0.42, 0);
+    r.rotation.set(Math.PI / 2 + i * 0.4, i * 0.7, 0); r.userData.spin = 0.4 + i * 0.25;
+    g.add(r);
+  }
+  g.add(sparkle(0.09, 0.55, 1.05, 0)); g.add(sparkle(0.07, -0.55, 0.9, 0.2)); g.add(sparkle(0.06, 0.4, 0.2, 0.4));
+  return g;
+}
+
 export const MODELS = {
   volunteer, falafel, branch: office, radio, billboard, warroom, coalition, startup: rocket,
   committee: parliament, summit: globe, spa: deadSea, satellite, quantum, portal,
@@ -1075,6 +1370,8 @@ export const MODELS = {
   medal, medalSilver: () => medal(C.silver), medalBronze: () => medal("#c77b3b"),
   briefcase, megaphone, fireworks, scroll, chair, clock, crown, heart: () => heart(1, 0, 0.5, 0), person: () => person(),
   hologram, moonbase, mars, dyson, senate, wormhole, multiverse, bigbang,
+  shuk, bus, rooftop, phonebank, studio, tower, train, cruise,
+  blackhole, nebula, timemachine, alienembassy, starforge, parade, pocketuniverse, cosmicstring, realityeditor, omniverse,
 };
 
 export function makeModel(name) {

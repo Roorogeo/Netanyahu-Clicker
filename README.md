@@ -12,10 +12,11 @@ build a campaign empire on a floating 3D island, and call early elections to win
   - the clicker is a gold campaign coin with Bibi's photo on the front and the flag on the back. It tilts toward your cursor, spins when you click it, and showers 3D ballots;
   - the **campaign map** is a floating island where every building you buy appears as a 3D model. Drag to rotate, scroll or pinch to zoom.
 - **Real images instead of emoji**: 48 low-poly 3D models, rendered to PNG icons for the store, upgrades, awards and ministers.
-- **22 buildings**, from Campaign Volunteers and Falafel Stand Rallies through a Quantum Pollster to a space age that
-  orbits above the island: Holographic Rally, Moon Base, Mars Colony, Dyson Sphere Billboard, Galactic Senate,
-  Wormhole Phone Bank, Multiverse Coalition and the Big Bang Rebrand.
-- **~260 upgrades**: eight tiers per building (up to 300 owned), click boosts, Charisma, 20 global boosts and 12 synergies.
+- **40 buildings**, from Campaign Volunteers, Shuk Stalls and Campaign Buses through Election Night Studios, the
+  Train to Jerusalem and a Quantum Pollster, to a space age orbiting above the island (Moon Base, Dyson Sphere
+  Billboard, Galactic Senate, Black Hole Debate Stage, Alien Embassy, Pocket Universe HQ, Reality Editor) that ends
+  with The Omniverse Ballot.
+- **~390 upgrades**: eight tiers per building (up to 300 owned), click boosts, Charisma, 26 global boosts and 22 synergies.
 - **Campaign Goals**: three rotating objectives (own buildings, win votes, click, catch news, start rallies) with
   production, click or vote rewards; every 10th goal also pays Political Capital. Swap a goal once a minute.
 - **Rally meter**: click fast to fill it and start a rally (clicks ×7, production ×2).
@@ -27,9 +28,10 @@ build a campaign empire on a floating 3D island, and call early elections to win
   1. **Elections** reset the term for Knesset seats (+2% each) and Ministers (12, up to 1,000 seats).
   2. **Legacy Tree and Endless Mandates**, bought with Political Capital (below). Endless Mandates are repeatable
      perks, some with no level cap.
-  3. **Eras**: with a full Knesset (120 seats), begin a new Era for Heritage = floor(√(seats ÷ 120)). Every Heritage
-     point ever earned gives +10% production forever, and you spend it on 12 Era perks (×5 and ×10 production,
-     double seats, double Capital, keep your Legacy Tree, and more). Your career vote total is kept.
+  3. **Eras**: with a full Knesset (120 seats), begin a new Era for 1 Heritage per 40 seats. Every Heritage point
+     ever earned gives +25% production, and every Era begun multiplies production by ×1.5 (compounding). Eras reset
+     seats, Ministers, Political Capital and Endless Mandates, but keep your Legacy Tree and career vote total.
+     Spend Heritage on 12 Era perks (×5 and ×10 production, double seats, double Capital, keep Mandates, and more).
 - **Legacy Tree** (prestige tree): every Knesset seat won in an election gives 1 Political Capital to spend on
   18 permanent perks in four branches (Grassroots, Charisma, Media, Strategy), capped by The Eternal Campaign.
   Refunds are free. Saves from before the tree get Political Capital equal to their seats.
@@ -90,6 +92,11 @@ someone is playing, plus after big moments.
 
 **Testing locally with the Firebase emulators:** run `firebase emulators:start --only auth,firestore --project demo-bibi`
 in the repo, serve the site on `localhost`, and open it with `?emulator=1`.
+
+## Releasing
+
+Before each commit, run `python3 tools/stamp-version.py`. It stamps a content hash onto every script and stylesheet
+in `index.html`, so browsers never mix files from two releases (GitHub Pages caches files for about 10 minutes).
 
 ## Run locally
 

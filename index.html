@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=c77b7efff9">
   <script>
     // Apply the saved theme before first paint, so dark/pride never flash light
     (function () {
@@ -23,7 +23,29 @@
     })();
   </script>
   <script type="importmap">
-    { "imports": { "three": "./vendor/three/three.module.min.js" } }
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.min.js?v=c77b7efff9",
+        "./js/account.js": "./js/account.js?v=c77b7efff9",
+        "./js/audio.js": "./js/audio.js?v=c77b7efff9",
+        "./js/badge3d.js": "./js/badge3d.js?v=c77b7efff9",
+        "./js/cloud-config.js": "./js/cloud-config.js?v=c77b7efff9",
+        "./js/cloud.js": "./js/cloud.js?v=c77b7efff9",
+        "./js/data.js": "./js/data.js?v=c77b7efff9",
+        "./js/flag3d.js": "./js/flag3d.js?v=c77b7efff9",
+        "./js/leaderboard.js": "./js/leaderboard.js?v=c77b7efff9",
+        "./js/main.js": "./js/main.js?v=c77b7efff9",
+        "./js/map3d.js": "./js/map3d.js?v=c77b7efff9",
+        "./js/models.js": "./js/models.js?v=c77b7efff9",
+        "./js/safety.js": "./js/safety.js?v=c77b7efff9",
+        "./js/themes.js": "./js/themes.js?v=c77b7efff9",
+        "./vendor/firebase/firebase.js": "./vendor/firebase/firebase.js?v=c77b7efff9",
+        "./vendor/three/addons/OrbitControls.js": "./vendor/three/addons/OrbitControls.js?v=c77b7efff9",
+        "./vendor/three/addons/RoomEnvironment.js": "./vendor/three/addons/RoomEnvironment.js?v=c77b7efff9",
+        "./vendor/three/addons/RoundedBoxGeometry.js": "./vendor/three/addons/RoundedBoxGeometry.js?v=c77b7efff9",
+        "./vendor/three/three.module.min.js": "./vendor/three/three.module.min.js?v=c77b7efff9"
+      }
+    }
   </script>
 </head>
 <body data-view="campaign">
@@ -141,6 +163,7 @@
           <div class="election-row"><span>Seats you'd win if you called an election now</span><b id="seats-gain">0</b></div>
           <div class="election-row muted small" id="seats-next"></div>
           <button id="btn-election" class="btn btn-primary btn-big">Call Early Elections</button>
+          <div class="era-callout hidden" id="era-callout"><img src="assets/icons/crown.png" alt=""><span id="era-callout-text"></span><button class="btn btn-primary" id="btn-era-callout">Begin a new Era</button></div>
           <div class="election-row"><span>Political Capital to spend in the Legacy Tree</span><b id="pc-knesset">0</b></div>
           <button id="btn-open-tree" class="btn">Open the Legacy Tree</button>
         </div>
@@ -162,7 +185,7 @@
         <div class="pcards" id="mandates"></div>
 
         <h3>Eras</h3>
-        <p class="muted small">Fill the Knesset (120 seats) to begin a new Era. It resets seats, Political Capital, the Legacy Tree and Endless Mandates, and gives <b>Heritage</b>: every point ever earned adds <b>+10% production forever</b>, and you spend it on Era perks below.</p>
+        <p class="muted small">Fill the Knesset (120 seats) to begin a new Era. You get <b>1 Heritage per 40 seats</b>. Every Heritage point ever earned adds <b>+25% production</b>, and every Era you begin multiplies production by <b>×1.5</b>, forever. Beginning an Era resets seats, Ministers, Political Capital and Endless Mandates. Your <b>Legacy Tree is kept</b>.</p>
         <div class="legacy-bar">
           <div class="pc-box"><img src="assets/icons/crown.png" alt=""><div><b id="heritage-avail">0</b><span>Heritage to spend</span></div></div>
           <div class="pc-box"><img src="assets/icons/bigbang.png" alt=""><div><b id="era-num">1</b><span>Current Era · <span id="heritage-bonus">+0%</span></span></div></div>
@@ -279,6 +302,6 @@
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="confetti" class="confetti" aria-hidden="true"></div>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=c77b7efff9"></script>
 </body>
 </html>

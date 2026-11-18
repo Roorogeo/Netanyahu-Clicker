@@ -87,9 +87,9 @@ export function createMap(canvas, { buildings, onHover }) {
   // never to the shared model materials, which other WebGL contexts also use.
   const envTex = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
   const withEnv = (m, k = 1) => { m.envMap = envTex; m.envMapIntensity = k; m.needsUpdate = true; return m; };
-  scene.fog = new THREE.Fog("#cfdcff", 30, 70);
+  scene.fog = new THREE.Fog("#cfdcff", 45, 130);
 
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 400);
   camera.position.set(17, 13, 17);
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(0, 0.6, 0);
@@ -97,7 +97,7 @@ export function createMap(canvas, { buildings, onHover }) {
   controls.dampingFactor = 0.07;
   controls.enablePan = false;
   controls.minDistance = 8;
-  controls.maxDistance = 46;
+  controls.maxDistance = 72;
   controls.maxPolarAngle = 1.32;
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.35;

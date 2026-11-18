@@ -22,7 +22,7 @@ const RALLY_CLICK_MULT = 7, RALLY_VPS_MULT = 2;
 // State
 // ======================================================================
 const freshState = () => ({
-  version: 2,
+  version: 3,
   votes: 0, totalVotes: 0, allTimeVotes: 0,
   clicks: 0, clickVotes: 0, newsClicked: 0, elections: 0, seats: 0,
   rallies: 0, decisions: 0, bestVps: 0,
@@ -46,9 +46,12 @@ let badge = null, map = null, flagBg = null, account = null, leaderboard = null;
 // ======================================================================
 // Formatting
 // ======================================================================
-const SHORT = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "UDc", "DDc"];
+const SHORT = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "UDc", "DDc", "TDc", "QaDc",
+  "QiDc", "SxDc", "SpDc", "OcDc", "NoDc", "Vg"];
 const LONG = ["", " thousand", " million", " billion", " trillion", " quadrillion", " quintillion",
-  " sextillion", " septillion", " octillion", " nonillion", " decillion", " undecillion", " duodecillion"];
+  " sextillion", " septillion", " octillion", " nonillion", " decillion", " undecillion", " duodecillion",
+  " tredecillion", " quattuordecillion", " quindecillion", " sexdecillion", " septendecillion", " octodecillion",
+  " novemdecillion", " vigintillion"];
 
 function fmtWith(n, style) {
   if (!isFinite(n)) return "∞";
@@ -59,6 +62,7 @@ function fmtWith(n, style) {
   }
   if (n < 1e6 && style !== "sci") return Math.floor(n).toLocaleString("en-US");
   if (style === "sci") return n.toExponential(2).replace("e+", "e");
+  if (n >= 1e66) return n.toExponential(2).replace("e+", "e");
   const i = Math.min(Math.floor(Math.log10(n) / 3), SHORT.length - 1);
   const v = n / Math.pow(10, i * 3);
   const digits = v >= 100 ? 1 : v >= 10 ? 2 : 3;
@@ -133,7 +137,8 @@ function globalMultiplier() {
   if (minister("space")) m *= 2;
   if (minister("everything")) m *= 3;
   m *= 1 + 0.1 * mandate("majority");
-  m *= 1 + 0.1 * (state.heritageTotal || 0);
+  m *= 1 + 0.25 * (state.heritageTotal || 0);
+  m *= Math.pow(1.5, state.era || 0);
   if (eraPerk("goldenage")) m *= 5;
   if (eraPerk("legend")) m *= 10;
   return m;
@@ -195,6 +200,8 @@ const mediaBoost = () => 1 + 0.2 * mandate("media");
 // DOM helpers
 // ======================================================================
 const $ = (id) => document.getElementById(id);
+// Bind an event if the element exists (a stale cached page may be missing newer elements)
+const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
 const els = {
   votes: $("votes"), vps: $("vps"), miniVotes: $("mini-votes"), buffs: $("buffs"), stage: $("stage"),
   particles: $("particles"), upgrades: $("upgrades"), upgCount: $("upg-count"), buildings: $("buildings"),
@@ -709,6 +716,12 @@ function renderKnesset() {
     + (state.seats >= 120 ? " The Knesset only has 120 seats, but who's counting?" : "");
   els.btnElection.disabled = gain < 1;
   els.btnElection.textContent = gain >= 1 ? `Call Early Elections (+${fmt(gain)} seats)` : "Not enough votes for a new seat yet";
+  const call = $("era-callout");
+  if (call) {
+    const eg = eraGain();
+    call.classList.toggle("hidden", eg < 1);
+    if (eg >= 1) $("era-callout-text").innerHTML = `You hold a full Knesset! Begin a new Era for <b>+${fmt(eg)} Heritage</b>.`;
+  }
   els.ministers.innerHTML = MINISTERS.map((m) => {
     const on = state.seats >= ministerSeats(m);
     return `<div class="minister ${on ? "on" : ""}">${img(m.icon)}<div><div class="minister-name">${m.name}</div>
@@ -767,6 +780,7 @@ const treeEls = {};
 const parentsOwned = (n) => n.parents.every((id) => perk(id));
 function buildTree() {
   const box = $("tree"), svg = $("tree-lines");
+  if (!box || !svg) return;
   svg.innerHTML = TREE.flatMap((n) => n.parents.map((pid) => {
     const p = TREE_BY_ID[pid];
     return `<line x1="${p.x}" y1="${p.y}" x2="${n.x}" y2="${n.y}" data-from="${pid}" data-to="${n.id}"></line>`;
@@ -800,6 +814,7 @@ function buildTree() {
   });
 }
 function renderTree() {
+  if (!$("tree") || !treeEls.root) return;
   $("pc-avail").textContent = fmt(state.pc || 0);
   $("pc-knesset").textContent = fmt(state.pc || 0);
   let anyAffordable = false;
@@ -869,6 +884,7 @@ const mandateCost = (m) => Math.round(m.base * Math.pow(m.growth, mandate(m.id))
 const mandateEls = {};
 function buildMandates() {
   const box = $("mandates");
+  if (!box) return;
   box.innerHTML = "";
   MANDATES.forEach((m) => {
     const card = document.createElement("div");
@@ -881,6 +897,7 @@ function buildMandates() {
   });
 }
 function renderMandates() {
+  if (!$("mandates")) return;
   MANDATES.forEach((m) => {
     const e = mandateEls[m.id], l = mandate(m.id), maxed = l >= m.max, cost = mandateCost(m);
     e.lvl.textContent = `Lv ${l}${m.max !== Infinity ? ` / ${m.max}` : ""}`;
@@ -903,10 +920,12 @@ function buyMandate(m) {
 // ======================================================================
 // Eras (top prestige layer)
 // ======================================================================
-const eraGain = () => (state.seats >= ERA_SEATS ? Math.floor(Math.sqrt(state.seats / ERA_SEATS)) : 0);
+const eraGain = () => (state.seats >= ERA_SEATS ? Math.floor(state.seats / 40) : 0);
 const perkEls = {};
+const eraMult = () => (1 + 0.25 * (state.heritageTotal || 0)) * Math.pow(1.5, state.era || 0);
 function buildEra() {
   const box = $("era-perks");
+  if (!box) return;
   box.innerHTML = "";
   ERA_PERKS.forEach((p) => {
     const card = document.createElement("div");
@@ -918,10 +937,11 @@ function buildEra() {
   });
 }
 function renderEra() {
+  if (!$("era-perks")) return;
   const gain = eraGain();
   $("heritage-avail").textContent = fmt(state.heritage || 0);
   $("era-num").textContent = fmt((state.era || 0) + 1);
-  $("heritage-bonus").textContent = `+${fmt((state.heritageTotal || 0) * 10)}%`;
+  $("heritage-bonus").textContent = `×${eraMult().toFixed(2)} production`;
   const btn = $("btn-era");
   btn.disabled = gain < 1;
   btn.textContent = gain >= 1 ? `Begin a new Era (+${fmt(gain)} Heritage)` : `Needs ${ERA_SEATS} Knesset seats (you have ${fmt(state.seats)})`;
@@ -948,9 +968,13 @@ function beginEra() {
   showModal({
     icon: "crown",
     title: "Begin a new Era?",
-    body: `<p>You'll earn <b>${fmt(gain)}</b> Heritage. Every Heritage point gives <b>+10% production forever</b>, and you can spend it on Era perks.</p>
-      <p class="muted small">Resets: this term, Knesset seats and Ministers, Political Capital, ${eraPerk("memory") ? "" : "the Legacy Tree, "}Endless Mandates.<br>
-      Keeps: awards, Heritage, Era perks, themes, your account and your career vote total.</p>`,
+    body: (() => {
+      const now = eraMult();
+      const next = (1 + 0.25 * ((state.heritageTotal || 0) + gain)) * Math.pow(1.5, (state.era || 0) + 1);
+      return `<p>You'll earn <b>${fmt(gain)}</b> Heritage. Era bonuses go from <b>×${now.toFixed(2)}</b> to <b>×${next.toFixed(2)}</b> production, forever, and you can spend Heritage on Era perks.</p>
+      <p class="muted small">Resets: this term, Knesset seats and Ministers, Political Capital${eraPerk("memory") ? "" : ", Endless Mandates"}.<br>
+      Keeps: your Legacy Tree, awards, Heritage, Era perks, themes, your account and your career vote total.</p>`;
+    })(),
     actions: [{ label: "Begin a new Era!", cls: "btn-primary", onClick: () => doEra(gain) }, { label: "Not yet" }],
   });
 }
@@ -961,7 +985,7 @@ function doEra(gain) {
     heritageTotal: (state.heritageTotal || 0) + gain, eraPerks: state.eraPerks, achievements: state.achievements,
     bestVps: state.bestVps, opts: state.opts, gameStart: state.gameStart, elections: state.elections, rallies: state.rallies,
     decisions: state.decisions, newsClicked: state.newsClicked, goalsDone: state.goalsDone,
-    tree: eraPerk("memory") ? state.tree : [], pc: 0,
+    tree: state.tree, pc: 0, mandates: eraPerk("memory") ? state.mandates : {},
   };
   state = Object.assign(freshState(), keep);
   applyTermStart();
@@ -971,7 +995,7 @@ function doEra(gain) {
   renderAll();
   sfx.election();
   confetti(220);
-  toast(`Era ${fmt(state.era + 1)} begins!`, `+${fmt(gain)} Heritage. Production is now +${fmt(state.heritageTotal * 10)}% from Heritage.`, "crown", "gold");
+  toast(`Era ${fmt(state.era + 1)} begins!`, `+${fmt(gain)} Heritage. Era bonuses now give ×${eraMult().toFixed(2)} production.`, "crown", "gold");
   save();
   account && account.soon();
 }
@@ -1156,7 +1180,7 @@ function renderStats() {
     ["Votes this term", fmtBig(state.totalVotes)],
     ["Votes this Era", fmtBig(state.allTimeVotes)],
     ["Votes in your whole career", fmtBig(state.lifetimeVotes || state.allTimeVotes)],
-    ["Era", `${fmt((state.era || 0) + 1)} · ${fmt(state.heritageTotal || 0)} Heritage (+${fmt((state.heritageTotal || 0) * 10)}%)`],
+    ["Era", `${fmt((state.era || 0) + 1)} · ${fmt(state.heritageTotal || 0)} Heritage (×${eraMult().toFixed(2)} production)`],
     ["Campaign Goals completed", fmt(state.goalsDone || 0)],
     ["Votes per second", fmtBig(cache.vps)],
     ["Best votes per second", fmtBig(state.bestVps)],
@@ -1301,13 +1325,21 @@ function deserialize(str) {
   // saves from before the Legacy Tree: existing seats become Political Capital
   if (data.pc === undefined) s.pc = s.seats || 0;
   if (data.lifetimeVotes === undefined) s.lifetimeVotes = s.allTimeVotes || 0;
+  // Eras used to give far less Heritage (and wiped the Legacy Tree): top up players who began one then
+  if ((data.version || 2) < 3 && (data.era || 0) > 0) {
+    const bonus = (data.era || 0) * 3;
+    s.heritage = (data.heritage || 0) + bonus;
+    s.heritageTotal = (data.heritageTotal || 0) + bonus;
+    s.pc = (s.pc || 0) + (data.era || 0) * 25;
+    s.eraCompensated = true;
+  }
+  s.version = 3;
   s.mandates = Object.fromEntries(Object.entries(data.mandates || {}).filter(([k, v]) => MANDATE_BY_ID[k] && v > 0));
   s.eraPerks = (data.eraPerks || []).filter((id) => ERA_PERK_BY_ID[id]);
   s.goals = Array.isArray(data.goals) ? data.goals.filter((g) => g && g.type && g.target) : [];
   s.tree = (data.tree || []).filter((id) => TREE_BY_ID[id]);
   s.buffs = (data.buffs || []).filter((b) => b.until > Date.now());
   s.history = Array.isArray(data.history) ? data.history.slice(-240) : [];
-  s.version = 2;
   return s;
 }
 function save(quiet = true) {
@@ -1674,6 +1706,14 @@ function init() {
   renderAll();
   if (loaded) applyOffline();
   recalc();
+  // Autosave starts first, so progress is saved even if something later in setup fails
+  setInterval(save, 10000);
+  window.addEventListener("beforeunload", () => save());
+  document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
+  if (state.eraCompensated) {
+    delete state.eraCompensated;
+    setTimeout(() => toast("Eras got better!", "Eras now give much more Heritage and keep your Legacy Tree. You've been given extra Heritage and Political Capital for the Eras you already began.", "crown", "gold"), 2000);
+  }
 
   // clicking: pointerdown feels instant on touch screens
   els.stage.addEventListener("pointerdown", (e) => {
@@ -1703,11 +1743,12 @@ function init() {
 
   els.decisionBtn.addEventListener("click", openDecision);
   els.btnElection.addEventListener("click", callElection);
-  $("btn-open-tree").addEventListener("click", () => setTab("legacy"));
-  $("btn-respec").addEventListener("click", respecTree);
-  $("btn-era").addEventListener("click", beginEra);
-  $("btn-map-rotate").addEventListener("click", (e) => { if (map) e.target.textContent = `Auto-rotate: ${map.toggleRotate() ? "on" : "off"}`; });
-  $("btn-map-reset").addEventListener("click", () => { if (map) { map.resetView(); $("btn-map-rotate").textContent = "Auto-rotate: on"; } });
+  on("btn-open-tree", "click", () => setTab("legacy"));
+  on("btn-respec", "click", respecTree);
+  on("btn-era", "click", beginEra);
+  on("btn-era-callout", "click", beginEra);
+  on("btn-map-rotate", "click", (e) => { if (map) e.target.textContent = `Auto-rotate: ${map.toggleRotate() ? "on" : "off"}`; });
+  on("btn-map-reset", "click", () => { if (map) { map.resetView(); $("btn-map-rotate").textContent = "Auto-rotate: on"; } });
 
   $("opt-theme").innerHTML = themeCards();
   $("theme-pop-grid").innerHTML = themeCards();
@@ -1715,32 +1756,32 @@ function init() {
     setThemeChoice(b.dataset.v);
     if (b.closest("#theme-pop")) toggleThemePop(false);
   }));
-  $("btn-theme").addEventListener("click", (e) => { e.stopPropagation(); toggleThemePop(); });
+  on("btn-theme", "click", (e) => { e.stopPropagation(); toggleThemePop(); });
   document.addEventListener("click", (e) => { if (!e.target.closest("#theme-pop") && !e.target.closest("#btn-theme")) toggleThemePop(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggleThemePop(false); });
-  $("btn-sound").addEventListener("click", () => {
+  on("btn-sound", "click", () => {
     state.opts.sound = !state.opts.sound;
     setSoundEnabled(state.opts.sound);
     if (state.opts.sound) { unlockAudio(); sfx.buy(); }
     renderAll();
   });
-  $("opt-sound").addEventListener("change", (e) => { state.opts.sound = e.target.checked; setSoundEnabled(state.opts.sound); updateSoundButton(); });
-  $("opt-particles").addEventListener("change", (e) => { state.opts.particles = e.target.checked; });
-  $("opt-ticker").addEventListener("change", (e) => { state.opts.ticker = e.target.checked; nextHeadline(); });
-  $("opt-flag").addEventListener("change", (e) => { state.opts.flag = e.target.checked; flagBg && flagBg.setAnimate(state.opts.flag); });
+  on("opt-sound", "change", (e) => { state.opts.sound = e.target.checked; setSoundEnabled(state.opts.sound); updateSoundButton(); });
+  on("opt-particles", "change", (e) => { state.opts.particles = e.target.checked; });
+  on("opt-ticker", "change", (e) => { state.opts.ticker = e.target.checked; nextHeadline(); });
+  on("opt-flag", "change", (e) => { state.opts.flag = e.target.checked; flagBg && flagBg.setAnimate(state.opts.flag); });
   document.querySelectorAll("#opt-numbers button").forEach((b) => b.addEventListener("click", () => {
     state.opts.numbers = b.dataset.v;
     upgSignature = "";
     renderAll();
   }));
 
-  $("btn-save").addEventListener("click", () => save(false));
-  $("btn-export").addEventListener("click", () => {
+  on("btn-save", "click", () => save(false));
+  on("btn-export", "click", () => {
     els.saveText.value = serialize();
     els.saveText.select();
     toast("Save exported", "Copy the text in the box and keep it somewhere safe.", "scroll");
   });
-  $("btn-import").addEventListener("click", () => {
+  on("btn-import", "click", () => {
     const txt = els.saveText.value.trim();
     if (!txt) return toast("Nothing to import", "Paste a save into the box first.", "scroll");
     try {
@@ -1753,7 +1794,7 @@ function init() {
       toast("Import failed", "That doesn't look like a valid save.", "scroll");
     }
   });
-  $("btn-reset").addEventListener("click", () => {
+  on("btn-reset", "click", () => {
     showModal({
       icon: "scroll", title: "Wipe your save?",
       body: "<p>This starts a brand-new campaign: all progress, seats and awards are cleared.</p><p class=\"muted small\">A backup is kept in Options → Backups, so you can still undo this.</p>",
@@ -1773,7 +1814,6 @@ function init() {
     });
   });
 
-  setInterval(save, 10000);
   setInterval(() => { snapshot("Automatic backup", "auto"); if (ui.tab === "options") renderBackups(); }, 15 * 60 * 1000);
   if (recoveredFrom) setTimeout(() => toast("Progress recovered", `Your latest save couldn't be read, so we loaded ${recoveredFrom}.`, "scroll", "gold"), 1500);
   account = initAccounts({ serialize, summary, loadSave, snapshot, toast, showModal, fmtBig, fmtTime, esc });
@@ -1781,8 +1821,6 @@ function init() {
     account, fmt, fmtBig, esc, toast, img,
     stats: () => ({ allTimeVotes: state.lifetimeVotes || state.allTimeVotes || 0, seats: Math.floor(state.seats || 0), bestVps: state.bestVps || 0 }),
   });
-  window.addEventListener("beforeunload", () => save());
-  document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 
   nextHeadline();
   requestAnimationFrame(frame);
