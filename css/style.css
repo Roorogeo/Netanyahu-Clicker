@@ -421,6 +421,9 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
 .store-controls { display: flex; gap: 6px; flex-wrap: wrap; }
 .section-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 12px 2px 6px; display: flex; justify-content: space-between; }
 .section-label .muted { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.section-label { align-items: center; }
+.buy-all { text-transform: none; letter-spacing: 0; background: var(--accent-grad); color: var(--on-accent); font-weight: 800; padding: 5px 12px; box-shadow: 0 3px 10px rgba(0, 56, 184, 0.3); }
+.buy-all:hover { filter: brightness(1.08); }
 
 .upgrades { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
 .upgrades:empty::after { content: "Win more votes to unlock upgrades."; grid-column: 1 / -1; color: var(--muted); font-size: 0.85rem; padding: 6px 2px; }

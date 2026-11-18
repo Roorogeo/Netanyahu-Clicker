@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/three/addons/OrbitControls.js";
 import { RoomEnvironment } from "../vendor/three/addons/RoomEnvironment.js";
-import { makeModel, animateModel, mat, drawThemeFlag, setFlagTheme, PRIDE_COLORS, C } from "./models.js";
+import { makeModel, collectAnims, animateNodes, animateSharedWaves, mat, drawThemeFlag, setFlagTheme, PRIDE_COLORS, C } from "./models.js";
 
 const TAU = Math.PI * 2;
 
@@ -80,6 +80,7 @@ export function createMap(canvas, { buildings, onHover }) {
   renderer.toneMappingExposure = 1.1;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false; // shadows are redrawn a few times a second, not every frame
 
   const scene = new THREE.Scene();
   scene.background = skyTexture();
@@ -480,6 +481,7 @@ export function createMap(canvas, { buildings, onHover }) {
       scene.add(obj);
     }
     decorate(obj);
+    obj.userData.anims = collectAnims(obj);
     obj.traverse((o) => { if (o.isMesh) o.userData.pickRoot = obj; });
     pickables.push(obj);
     return obj;
@@ -669,11 +671,30 @@ export function createMap(canvas, { buildings, onHover }) {
 
   let active = true, raf = 0, last = performance.now(), t = 0;
   const easeOutBack = (x) => 1 + 2.4 * Math.pow(x - 1, 3) + 1.4 * Math.pow(x - 1, 2);
+  const QUALITY = {
+    high: { pr: 1.75, shadow: 2048, shadowEvery: 120, fps: 60 },
+    medium: { pr: 1.25, shadow: 1024, shadowEvery: 250, fps: 45 },
+    low: { pr: 1, shadow: 0, shadowEvery: 0, fps: 30 },
+  };
+  let Q = QUALITY.high, shadowAt = 0;
+  function setQuality(name) {
+    Q = QUALITY[name] || QUALITY.high;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pr));
+    sun.castShadow = Q.shadow > 0;
+    if (Q.shadow && sun.shadow.mapSize.x !== Q.shadow) {
+      sun.shadow.mapSize.set(Q.shadow, Q.shadow);
+      if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    }
+    renderer.shadowMap.needsUpdate = true;
+    resize();
+  }
   function frame(now) {
     raf = requestAnimationFrame(frame);
     if (!active || document.hidden) { last = now; return; }
+    if (now - last < 1000 / Q.fps - 2) return; // frame-rate cap for lower quality levels
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now; t += dt;
+    if (Q.shadow && now - shadowAt > Q.shadowEvery) { renderer.shadowMap.needsUpdate = true; shadowAt = now; }
     controls.update();
 
     for (const id in instances) {
@@ -690,9 +711,10 @@ export function createMap(canvas, { buildings, onHover }) {
         } else if (id === "volunteer") {
           o.position.y = Math.abs(Math.sin(t * 3 + o.userData.phase)) * 0.12;
         }
-        animateModel(o, t, dt);
+        animateNodes(o.userData.anims, t, dt);
       }
     }
+    animateSharedWaves(t);
     // big flag
     const pos = bigFlagGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
@@ -712,7 +734,7 @@ export function createMap(canvas, { buildings, onHover }) {
       const k = (now - g.userData.born) / 700;
       if (k < 1) g.scale.setScalar(Math.max(0.0001, k <= 0 ? 0.0001 : easeOutBack(k)));
       else if (g.scale.x !== 1) g.scale.setScalar(1);
-      animateModel(g, t, dt);
+      animateNodes(g.userData.anims || (g.userData.anims = collectAnims(g)), t, dt);
     }
     if (crown.visible) { crown.rotation.y += dt * 0.6; crown.position.y = 5.5 + Math.sin(t * 2) * 0.05; }
     arcs.children.forEach((o) => {
@@ -728,7 +750,7 @@ export function createMap(canvas, { buildings, onHover }) {
       }
       snowGeo.attributes.position.needsUpdate = true;
     }
-    if (menorah.visible) animateModel(menorah, t, dt);
+    if (menorah.visible) animateNodes(menorah.userData.anims || (menorah.userData.anims = collectAnims(menorah)), t, dt);
     if (bunting.visible) bunting.children.forEach((f) => { if (f.userData.sway !== undefined) f.rotation.x = Math.sin(t * 2.2 + f.userData.sway) * 0.35; });
     if (beams.visible) beams.children.forEach((p) => { p.rotation.set(Math.sin(t * 0.5 + p.userData.phase) * 0.35, 0, Math.cos(t * 0.4 + p.userData.phase) * 0.35); });
     updateFireworks(dt, now);
@@ -741,6 +763,7 @@ export function createMap(canvas, { buildings, onHover }) {
     update,
     resize,
     setTheme,
+    setQuality,
     setUpgradeLook,
     setRally(on) { rallyOn = on; },
     setActive(on) { active = on; if (on) resize(); },

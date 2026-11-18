@@ -153,6 +153,7 @@ function flagPole(h = 1.2, fw = 0.42) {
   const f = m(geo(`flagplane${fw}`, () => new THREE.PlaneGeometry(fw, fw * 0.727, 8, 4)),
     new THREE.MeshStandardMaterial({ map: flagTex(), side: THREE.DoubleSide, roughness: 0.8 }), fw / 2 + 0.02, h - fw * 0.37, 0);
   f.userData.wave = true;
+  registerWave(f.geometry);
   g.add(f);
   return g;
 }
@@ -1382,24 +1383,44 @@ export function makeModel(name) {
   return g;
 }
 
-// Per-frame animation for anything flagged in userData
-export function animateModel(root, t, dt) {
-  root.traverse((o) => {
-    const u = o.userData;
-    if (u.blink) o.material = (Math.sin(t * 4 + o.id) > 0) ? glow(C.red, 2.4) : mat("#5a1a1a");
+// ---------- animation ----------
+// Flags share one geometry per size, so they're animated once per frame (not once per building).
+const waveGeos = new Map(); // geometry -> base positions
+function registerWave(g) {
+  if (!waveGeos.has(g)) waveGeos.set(g, Float32Array.from(g.attributes.position.array));
+}
+export function animateSharedWaves(t) {
+  for (const [g, base] of waveGeos) {
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = base[i * 3];
+      pos.array[i * 3 + 2] = Math.sin(x * 14 - t * 5) * 0.025 * (x + 0.2);
+    }
+    pos.needsUpdate = true;
+  }
+}
+
+const isAnimated = (u) => u.blink || u.spin || u.spinZ || u.bob !== undefined || u.flicker || u.pulse;
+// Collect the animated parts of a model once, so each frame only touches those
+export function collectAnims(root) {
+  const list = [];
+  root.traverse((o) => { if (isAnimated(o.userData)) list.push(o); });
+  return list;
+}
+const blinkOn = () => glow(C.red, 2.4), blinkOff = () => mat("#5a1a1a");
+export function animateNodes(list, t, dt) {
+  for (let k = 0; k < list.length; k++) {
+    const o = list[k], u = o.userData;
+    if (u.blink) o.material = (Math.sin(t * 4 + o.id) > 0) ? blinkOn() : blinkOff();
     if (u.spin) o.rotation.y += u.spin * dt;
     if (u.spinZ) o.rotation.z += u.spinZ * dt;
     if (u.bob !== undefined) o.position.y += Math.sin(t * 2 + u.bob) * 0.0015;
-    if (u.flicker) o.scale.y = (o.userData.baseSY ??= o.scale.y) * (0.85 + Math.sin(t * 23 + o.id) * 0.1 + Math.sin(t * 13) * 0.05);
+    if (u.flicker) o.scale.y = (u.baseSY ??= o.scale.y) * (0.85 + Math.sin(t * 23 + o.id) * 0.1 + Math.sin(t * 13) * 0.05);
     if (u.pulse) o.scale.setScalar(1 + Math.sin(t * 3) * 0.2);
-    if (u.wave && o.geometry) {
-      const pos = o.geometry.attributes.position;
-      if (!u.base) u.base = Float32Array.from(pos.array);
-      for (let i = 0; i < pos.count; i++) {
-        const x = u.base[i * 3];
-        pos.array[i * 3 + 2] = Math.sin(x * 14 - t * 5) * 0.025 * (x + 0.2);
-      }
-      pos.needsUpdate = true;
-    }
-  });
+  }
+}
+// Convenience for one-off use (e.g. the icon renderer)
+export function animateModel(root, t, dt) {
+  animateNodes(root.userData.anims || (root.userData.anims = collectAnims(root)), t, dt);
+  animateSharedWaves(t);
 }

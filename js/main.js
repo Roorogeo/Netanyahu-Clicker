@@ -35,7 +35,7 @@ const freshState = () => ({
   goals: [], goalsDone: 0, goalRerollAt: 0,
   history: [],
   termStart: Date.now(), gameStart: Date.now(), lastSave: Date.now(),
-  opts: { particles: true, ticker: true, sound: true, flag: true, numbers: "short", theme: "auto" },
+  opts: { particles: true, ticker: true, sound: true, flag: true, numbers: "short", theme: "auto", graphics: "auto" },
 });
 
 let state = freshState();
@@ -219,6 +219,9 @@ const mediaBoost = () => 1 + 0.2 * mandate("media");
 // ======================================================================
 const $ = (id) => document.getElementById(id);
 // Bind an event if the element exists (a stale cached page may be missing newer elements)
+// Only touch the DOM when a value actually changes (the store refreshes 10 times a second)
+const setText = (el, v) => { if (el && el._t !== v) { el._t = v; el.textContent = v; } };
+const setHTML = (el, v) => { if (el && el._h !== v) { el._h = v; el.innerHTML = v; } };
 const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
 const els = {
   votes: $("votes"), vps: $("vps"), miniVotes: $("mini-votes"), buffs: $("buffs"), stage: $("stage"),
@@ -372,28 +375,28 @@ function renderBuildings() {
         shownLocked++;
         e.root.classList.remove("hidden");
         e.root.classList.add("locked");
-        e.name.textContent = "???";
-        e.rate.textContent = "";
+        setText(e.name, "???");
+        setText(e.rate, "");
       } else e.root.classList.add("hidden");
     } else {
       e.root.classList.remove("hidden", "locked");
-      e.name.textContent = b.name;
+      setText(e.name, b.name);
       const pb = cache.perBuilding[b.id];
-      e.rate.textContent = state.buildings[b.id] ? `${fmt(pb.total)}/s` : `${fmt(pb.each)}/s each`;
+      setText(e.rate, state.buildings[b.id] ? `${fmt(pb.total)}/s` : `${fmt(pb.each)}/s each`);
     }
     const amt = resolveAmount(b);
     let ok;
     if (ui.buyMode === "sell") {
       const v = sellValue(b, amt);
       ok = visible && state.buildings[b.id] >= Math.min(amt, state.buildings[b.id]) && state.buildings[b.id] > 0;
-      e.cost.innerHTML = `${ballotInline}+${fmt(v)}${amt > 1 ? ` <small>(${fmt(Math.min(amt, state.buildings[b.id]))})</small>` : ""}`;
+      setHTML(e.cost, `${ballotInline}+${fmt(v)}${amt > 1 ? ` <small>(${fmt(Math.min(amt, state.buildings[b.id]))})</small>` : ""}`);
     } else {
       const cost = buildingCost(b, amt);
       ok = visible && state.votes >= cost;
-      e.cost.innerHTML = `${ballotInline}${fmt(cost)}${ui.buyAmount !== 1 ? ` <small>×${fmt(amt)}</small>` : ""}`;
+      setHTML(e.cost, `${ballotInline}${fmt(cost)}${ui.buyAmount !== 1 ? ` <small>×${fmt(amt)}</small>` : ""}`);
       if (ok) anyAffordable = true;
     }
-    e.owned.textContent = state.buildings[b.id] || "";
+    setText(e.owned, String(state.buildings[b.id] || ""));
     e.root.classList.toggle("afford", ok);
     e.root.classList.toggle("sell", ui.buyMode === "sell");
   });
@@ -437,6 +440,7 @@ function storeAction(b) {
     if (state.votes < cost) return sfx.denied();
     state.votes -= cost;
     state.buildings[b.id] += amt;
+    invalidateUpgrades();
     sfx.buy();
     if (state.buildings[b.id] === amt) toast(`New: ${b.name}`, "It's on your campaign map now.", b.id);
   }
@@ -451,7 +455,14 @@ function storeAction(b) {
 // Store: upgrades
 // ======================================================================
 let upgSignature = "";
+let upgCache = null, upgCacheAt = 0;
+const invalidateUpgrades = () => { upgCache = null; };
 function availableUpgrades() {
+  const now = performance.now();
+  if (!upgCache || now - upgCacheAt > 500) { upgCache = computeAvailableUpgrades(); upgCacheAt = now; }
+  return upgCache;
+}
+function computeAvailableUpgrades() {
   return UPGRADES.filter((u) => !has(u.id) && u.unlock(state)).sort((a, b) => a.cost - b.cost);
 }
 function renderUpgrades() {
@@ -477,6 +488,40 @@ function renderUpgrades() {
     btn.classList.toggle("afford", state.votes >= upgradeCost(u));
   }
 }
+// Buy every upgrade you can afford, cheapest first (buying some can unlock more)
+function buyAllUpgrades() {
+  unlockAudio();
+  const before = upgradeLook();
+  let n = 0, spent = 0, monuments = 0;
+  for (let guard = 0; guard < 1000; guard++) {
+    invalidateUpgrades();
+    const u = availableUpgrades().find((x) => state.votes >= upgradeCost(x));
+    if (!u) break;
+    const c = upgradeCost(u);
+    state.votes -= c; spent += c; n++;
+    state.upgrades.push(u.id);
+    if (MONUMENT_UPGRADES.test(u.id) || u.id === "global_8" || u.id === "global_9") monuments++;
+    recalc();
+  }
+  invalidateUpgrades();
+  if (!n) return sfx.denied();
+  sfx.upgrade();
+  applyUpgradeLook();
+  const metal = METAL_NAMES[Math.min(6, upgradeLook().click)] !== METAL_NAMES[Math.min(6, before.click)];
+  toast(`Bought ${fmt(n)} upgrade${n === 1 ? "" : "s"}`, `Spent ${fmtBig(spent)} votes.${monuments ? ` ${monuments} new landmark${monuments === 1 ? "" : "s"} on your island.` : ""}${metal ? " Your coin got a new rim." : ""}`, "bulb", "gold");
+  hideTooltip();
+  renderUpgrades();
+  account && account.soon();
+}
+function renderBuyAll() {
+  const btn = $("btn-buy-all");
+  if (!btn) return;
+  let n = 0, total = 0, votes = state.votes;
+  for (const u of availableUpgrades()) { const c = upgradeCost(u); if (c <= votes) { votes -= c; total += c; n++; } }
+  btn.classList.toggle("hidden", n === 0);
+  setText(btn, `Buy all (${fmt(n)})`);
+  btn.title = `Buy ${fmt(n)} upgrade${n === 1 ? "" : "s"} for ${fmtBig(total)} votes`;
+}
 function upgradeTooltip(u) {
   const c = upgradeCost(u);
   return `<div class="tt-head">${img(u.icon, "tt-ico")}<div><div class="tt-title">${u.name}</div><div class="tt-sub">Upgrade</div></div></div>
@@ -492,6 +537,7 @@ function buyUpgrade(u) {
   const before = upgradeLook();
   state.votes -= c;
   state.upgrades.push(u.id);
+  invalidateUpgrades();
   sfx.upgrade();
   recalc();
   applyUpgradeLook();
@@ -1283,9 +1329,9 @@ function drawGraph() {
 // ======================================================================
 let lastBuffSig = "";
 function renderBank() {
-  els.votes.textContent = fmtBig(state.votes);
-  els.vps.textContent = `${fmtBig(cache.vps)} per second`;
-  els.miniVotes.textContent = `${fmt(state.votes)} votes · ${fmt(cache.vps)}/s`;
+  setText(els.votes, fmtBig(state.votes));
+  setText(els.vps, `${fmtBig(cache.vps)} per second`);
+  setText(els.miniVotes, `${fmt(state.votes)} votes · ${fmt(cache.vps)}/s`);
   const now = Date.now();
   const sig = state.buffs.map((b) => b.key).join(",");
   if (sig !== lastBuffSig) {
@@ -1296,10 +1342,10 @@ function renderBank() {
     const b = state.buffs.find((x) => x.key === el.dataset.key);
     if (!b) continue;
     const left = Math.max(0, (b.until - now) / 1000);
-    el.querySelector(".buff-time").textContent = `${Math.ceil(left)}s`;
+    setText(el.querySelector(".buff-time"), `${Math.ceil(left)}s`);
     el.querySelector(".buff-bar").style.width = `${(left / (b.dur || left || 1)) * 100}%`;
   }
-  document.title = `${fmt(state.votes)} votes · Bibi Clicker`;
+  if (now - (renderBank.titleAt || 0) > 1000) { renderBank.titleAt = now; document.title = `${fmt(state.votes)} votes · Bibi Clicker`; }
 }
 function updateMapEmpty() {
   const any = Object.values(state.buildings).some((n) => n > 0);
@@ -1580,6 +1626,7 @@ function renderBackups() {
 // Rendering all
 // ======================================================================
 function renderAll() {
+  invalidateUpgrades();
   renderBank(); renderBuildings(); renderUpgrades(); renderAchievements(); renderKnesset(); renderTree(); renderStats();
   updateMapEmpty();
   $("opt-particles").checked = state.opts.particles;
@@ -1600,9 +1647,10 @@ function updateSoundButton() {
 // ======================================================================
 // Main loop
 // ======================================================================
-let last = performance.now(), storeAcc = 0, slowAcc = 0, histAcc = 0;
+let last = performance.now(), storeAcc = 0, slowAcc = 0, histAcc = 0, slowTicks = 0;
 function frame(now) {
   requestAnimationFrame(frame);
+  watchFrames(now - last);
   const dt = Math.min((now - last) / 1000, 3600);
   last = now;
   const t = Date.now();
@@ -1624,7 +1672,7 @@ function frame(now) {
 
   renderBank();
   storeAcc += dt;
-  if (storeAcc > 0.1) { storeAcc = 0; renderBuildings(); renderUpgrades(); }
+  if (storeAcc > 0.1) { storeAcc = 0; renderBuildings(); renderUpgrades(); renderBuyAll(); }
 
   slowAcc += dt;
   if (slowAcc >= 0.5) {
@@ -1635,7 +1683,8 @@ function frame(now) {
     refreshTooltip();
     if (ui.tab === "stats") renderStats();
     if (ui.tab === "knesset") renderKnesset();
-    renderTree();
+    slowTicks = (slowTicks + 1) % 4;
+    if (ui.tab === "legacy" || ui.tab === "knesset" || slowTicks === 0) renderTree();
     checkGoals();
   }
   histAcc += dt;
@@ -1649,6 +1698,34 @@ function frame(now) {
 // ======================================================================
 // 3D
 // ======================================================================
+// Graphics quality: "auto" picks medium on computers and low on phones, and steps down if the game runs slowly
+let autoQuality = null;
+function resolvedQuality() {
+  const g = state.opts.graphics || "auto";
+  if (g !== "auto") return g;
+  if (!autoQuality) autoQuality = isMobile() || (navigator.hardwareConcurrency || 8) <= 4 ? "low" : "medium";
+  return autoQuality;
+}
+function applyQuality() {
+  const q = resolvedQuality();
+  map && map.setQuality && map.setQuality(q);
+  badge && badge.setQuality && badge.setQuality(q);
+  flagBg && flagBg.setQuality && flagBg.setQuality(q);
+  document.querySelectorAll("#opt-graphics button").forEach((b) => b.classList.toggle("active", b.dataset.v === (state.opts.graphics || "auto")));
+}
+// Frame-time watchdog for "auto": if frames stay slow for a few seconds, lower the quality one step
+let slowFor = 0, frameEMA = 16;
+function watchFrames(dtMs) {
+  frameEMA = frameEMA * 0.95 + Math.min(dtMs, 250) * 0.05;
+  if ((state.opts.graphics || "auto") !== "auto" || document.hidden) return;
+  slowFor = frameEMA > 40 ? slowFor + dtMs : 0;
+  if (slowFor > 5000 && resolvedQuality() !== "low") {
+    slowFor = 0;
+    autoQuality = resolvedQuality() === "high" ? "medium" : "low";
+    applyQuality();
+    toast("Graphics lowered", "The game was running slowly, so graphics were turned down. Change this in Options → Graphics.", "clock");
+  }
+}
 function webglAvailable() {
   try {
     const c = document.createElement("canvas");
@@ -1686,6 +1763,7 @@ async function init3D() {
   } catch (e) { console.warn("3D map unavailable", e); $("map-fallback").classList.remove("hidden"); }
   updateMapEmpty();
   applyUpgradeLook();
+  applyQuality();
 }
 function mapHover(type, evt) {
   if (!type || !evt) { if (tooltipSource && tooltipSource.el === $("map")) hideTooltip(); return; }
@@ -1889,6 +1967,13 @@ function init() {
   on("btn-respec", "click", respecTree);
   on("btn-era", "click", beginEra);
   on("btn-era-callout", "click", beginEra);
+  on("btn-buy-all", "click", buyAllUpgrades);
+  document.querySelectorAll("#opt-graphics button").forEach((b) => b.addEventListener("click", () => {
+    state.opts.graphics = b.dataset.v;
+    autoQuality = null;
+    applyQuality();
+    save();
+  }));
   on("btn-map-rotate", "click", (e) => { if (map) e.target.textContent = `Auto-rotate: ${map.toggleRotate() ? "on" : "off"}`; });
   on("btn-map-reset", "click", () => { if (map) { map.resetView(); $("btn-map-rotate").textContent = "Auto-rotate: on"; } });
 

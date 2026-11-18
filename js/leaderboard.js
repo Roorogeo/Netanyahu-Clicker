@@ -8,8 +8,6 @@ const BOARDS = [
   { field: "bestVps", label: "Votes/sec", long: "Best votes per second", icon: "startup" },
 ];
 const NAME_RE = /^[\p{L}\p{N} _.\-]{3,20}$/u;
-// A small filter for names that impersonate staff or are obviously offensive
-const BLOCKED = ["admin", "moderator", "official", "support", "fuck", "shit", "bitch", "cunt", "nigg", "fag", "whore", "slut", "nazi", "hitler", "rape", "kike", "porn", "retard"];
 const WRITE_EVERY_MS = 5 * 60 * 1000;
 const MEDALS = ["medal", "medalSilver", "medalBronze"];
 
@@ -25,8 +23,6 @@ export function initLeaderboard({ account, stats, fmt, fmtBig, esc, toast, img }
 
   function validName(name) {
     if (!NAME_RE.test(name)) return "Use 3 to 20 letters, numbers, spaces, dots, dashes or underscores.";
-    const low = name.toLowerCase().replace(/[^a-z]/g, "");
-    if (BLOCKED.some((w) => low.includes(w))) return "Please choose a different name.";
     return "";
   }
 

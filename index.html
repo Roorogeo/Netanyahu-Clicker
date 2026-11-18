@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=5ddac0a95e">
+  <link rel="stylesheet" href="css/style.css?v=ea27e0b8d8">
   <script>
     // Apply the saved theme before first paint, so dark/pride never flash light
     (function () {
@@ -25,25 +25,25 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "./vendor/three/three.module.min.js?v=5ddac0a95e",
-        "./js/account.js": "./js/account.js?v=5ddac0a95e",
-        "./js/audio.js": "./js/audio.js?v=5ddac0a95e",
-        "./js/badge3d.js": "./js/badge3d.js?v=5ddac0a95e",
-        "./js/cloud-config.js": "./js/cloud-config.js?v=5ddac0a95e",
-        "./js/cloud.js": "./js/cloud.js?v=5ddac0a95e",
-        "./js/data.js": "./js/data.js?v=5ddac0a95e",
-        "./js/flag3d.js": "./js/flag3d.js?v=5ddac0a95e",
-        "./js/leaderboard.js": "./js/leaderboard.js?v=5ddac0a95e",
-        "./js/main.js": "./js/main.js?v=5ddac0a95e",
-        "./js/map3d.js": "./js/map3d.js?v=5ddac0a95e",
-        "./js/models.js": "./js/models.js?v=5ddac0a95e",
-        "./js/safety.js": "./js/safety.js?v=5ddac0a95e",
-        "./js/themes.js": "./js/themes.js?v=5ddac0a95e",
-        "./vendor/firebase/firebase.js": "./vendor/firebase/firebase.js?v=5ddac0a95e",
-        "./vendor/three/addons/OrbitControls.js": "./vendor/three/addons/OrbitControls.js?v=5ddac0a95e",
-        "./vendor/three/addons/RoomEnvironment.js": "./vendor/three/addons/RoomEnvironment.js?v=5ddac0a95e",
-        "./vendor/three/addons/RoundedBoxGeometry.js": "./vendor/three/addons/RoundedBoxGeometry.js?v=5ddac0a95e",
-        "./vendor/three/three.module.min.js": "./vendor/three/three.module.min.js?v=5ddac0a95e"
+        "three": "./vendor/three/three.module.min.js?v=ea27e0b8d8",
+        "./js/account.js": "./js/account.js?v=ea27e0b8d8",
+        "./js/audio.js": "./js/audio.js?v=ea27e0b8d8",
+        "./js/badge3d.js": "./js/badge3d.js?v=ea27e0b8d8",
+        "./js/cloud-config.js": "./js/cloud-config.js?v=ea27e0b8d8",
+        "./js/cloud.js": "./js/cloud.js?v=ea27e0b8d8",
+        "./js/data.js": "./js/data.js?v=ea27e0b8d8",
+        "./js/flag3d.js": "./js/flag3d.js?v=ea27e0b8d8",
+        "./js/leaderboard.js": "./js/leaderboard.js?v=ea27e0b8d8",
+        "./js/main.js": "./js/main.js?v=ea27e0b8d8",
+        "./js/map3d.js": "./js/map3d.js?v=ea27e0b8d8",
+        "./js/models.js": "./js/models.js?v=ea27e0b8d8",
+        "./js/safety.js": "./js/safety.js?v=ea27e0b8d8",
+        "./js/themes.js": "./js/themes.js?v=ea27e0b8d8",
+        "./vendor/firebase/firebase.js": "./vendor/firebase/firebase.js?v=ea27e0b8d8",
+        "./vendor/three/addons/OrbitControls.js": "./vendor/three/addons/OrbitControls.js?v=ea27e0b8d8",
+        "./vendor/three/addons/RoomEnvironment.js": "./vendor/three/addons/RoomEnvironment.js?v=ea27e0b8d8",
+        "./vendor/three/addons/RoundedBoxGeometry.js": "./vendor/three/addons/RoundedBoxGeometry.js?v=ea27e0b8d8",
+        "./vendor/three/three.module.min.js": "./vendor/three/three.module.min.js?v=ea27e0b8d8"
       }
     }
   </script>
@@ -228,6 +228,13 @@
           <label class="switch"><input type="checkbox" id="opt-flag"><span></span> Animated 3D flag background</label>
         </div>
         <div class="opt-group">
+          <span class="opt-label">Graphics</span>
+          <div class="seg" id="opt-graphics">
+            <button data-v="auto">Auto</button><button data-v="high">High</button><button data-v="medium">Medium</button><button data-v="low">Low</button>
+          </div>
+          <span class="muted small">Lower settings reduce resolution, shadows and frame rate for smoother play. Auto lowers graphics by itself if the game runs slowly.</span>
+        </div>
+        <div class="opt-group">
           <span class="opt-label">Number format</span>
           <div class="seg" id="opt-numbers">
             <button data-v="short">1.5M</button><button data-v="long">1.5 million</button><button data-v="sci">1.5e6</button>
@@ -269,7 +276,7 @@
           </div>
         </div>
       </div>
-      <div class="section-label">Upgrades <span id="upg-count" class="muted"></span></div>
+      <div class="section-label"><span>Upgrades <span id="upg-count" class="muted"></span></span><button class="chip buy-all hidden" id="btn-buy-all">Buy all</button></div>
       <div id="upgrades" class="upgrades"></div>
       <div class="section-label">Buildings</div>
       <div id="buildings" class="buildings"></div>
@@ -302,6 +309,6 @@
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="confetti" class="confetti" aria-hidden="true"></div>
 
-  <script type="module" src="js/main.js?v=5ddac0a95e"></script>
+  <script type="module" src="js/main.js?v=ea27e0b8d8"></script>
 </body>
 </html>

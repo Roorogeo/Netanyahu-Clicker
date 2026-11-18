@@ -86,11 +86,11 @@ export function createFlagBackground(canvas, { animate = true, theme = null } = 
     if (!running) renderOnce();
   }
 
-  let running = false, raf = 0, last = 0, t = 0;
+  let running = false, raf = 0, last = 0, t = 0, frameMs = 33;
   function renderOnce() { wave(t); renderer.render(scene, camera); }
   function loop(now) {
     raf = requestAnimationFrame(loop);
-    if (now - last < 33) return; // ~30 fps is plenty for a background
+    if (now - last < frameMs) return; // a background doesn't need a high frame rate
     t += Math.min((now - last) / 1000, 0.1);
     last = now;
     renderOnce();
@@ -107,5 +107,13 @@ export function createFlagBackground(canvas, { animate = true, theme = null } = 
   resize();
   setAnimate(animate);
   setTheme(theme);
-  return { setAnimate, resize, setTheme };
+  // Quality: high = 30 fps, medium = 20 fps at lower resolution, low = still image
+  let wanted = animate;
+  function setQuality(name) {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, name === "high" ? 1.5 : name === "medium" ? 1 : 0.75));
+    frameMs = name === "high" ? 33 : 50;
+    resize();
+    setAnimate(wanted && name !== "low");
+  }
+  return { setAnimate(on) { wanted = on; setAnimate(on); }, resize, setTheme, setQuality };
 }

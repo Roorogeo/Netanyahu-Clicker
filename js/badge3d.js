@@ -317,9 +317,10 @@ export function createBadge(canvas, { photoUrl }) {
   new ResizeObserver(resize).observe(canvas);
   resize();
 
-  let last = performance.now(), t = 0, raf = 0;
+  let last = performance.now(), t = 0, raf = 0, fps = 60;
   function frame(now) {
     raf = requestAnimationFrame(frame);
+    if (now - last < 1000 / fps - 2) return;
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
     t += dt;
@@ -394,6 +395,11 @@ export function createBadge(canvas, { photoUrl }) {
       backTex.needsUpdate = true;
     },
     setUpgrades,
+    setQuality(name) {
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, name === "low" ? 1 : name === "medium" ? 1.5 : 2));
+      fps = name === "low" ? 30 : 60;
+      resize();
+    },
     get photoLoaded() { return photoOk; },
     resize,
   };
