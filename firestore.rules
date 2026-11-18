@@ -32,6 +32,24 @@ service cloud.firestore {
       }
     }
 
+    // Public leaderboard: anyone can read it, players can only write their own entry.
+    // Only a chosen nickname and three scores are stored; never an email.
+    match /leaderboard/{uid} {
+      allow read: if true;
+      allow delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validEntry();
+    }
+    function validEntry() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'allTimeVotes', 'seats', 'bestVps', 'updatedAt'])
+        && d.name is string && d.name.size() >= 3 && d.name.size() <= 20
+        && d.name.matches('^[\\p{L}\\p{N} _.\\-]+$')
+        && d.allTimeVotes is number && d.allTimeVotes >= 0
+        && d.seats is int && d.seats >= 0 && d.seats < 100000000
+        && d.bestVps is number && d.bestVps >= 0
+        && d.updatedAt == request.time;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

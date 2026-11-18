@@ -19,6 +19,7 @@ export function initAccounts(h) {
   const panel = $("account"), body = $("account-body"), dot = $("acct-dot"), btn = $("btn-account");
   let cloud = null, user = null, status = cloudConfigured() ? "loading" : "off";
   let lastSynced = 0, pushing = false, conflictOpen = false, view = "signin", busy = false;
+  const userListeners = [], syncListeners = [], cloudListeners = [];
 
   const readMeta = () => { try { return JSON.parse(safeGet(META_KEY) || "{}"); } catch (e) { return {}; } };
   const writeMeta = (uid, rev) => safeSet(META_KEY, JSON.stringify({ uid, rev }));
@@ -62,6 +63,7 @@ export function initAccounts(h) {
       writeMeta(user.uid, rev);
       lastSynced = Date.now();
       setStatus("synced");
+      syncListeners.forEach((f) => f());
     } catch (e) {
       if (e.code === "conflict") { pushing = false; return askConflict(e.remote); }
       console.warn("Cloud save failed", e);
@@ -315,12 +317,14 @@ export function initAccounts(h) {
       onUser: (u) => {
         const was = user;
         user = u;
+        userListeners.forEach((f) => f(u));
         if (!u) { if (was) setStatus("guest"); else setStatus("guest"); return; }
         if (!panel.classList.contains("hidden")) close();
         reconcile();
       },
     }).then((c) => {
       cloud = c;
+      cloudListeners.forEach((f) => f(c));
       if (!user) setStatus("guest");
       render();
     }).catch((e) => {
@@ -335,6 +339,11 @@ export function initAccounts(h) {
     // called after big moments (upgrade, election, tree) to save to the account sooner
     soon() { clearTimeout(this._t); this._t = setTimeout(() => sync(true), 4000); },
     get signedIn() { return !!user; },
+    get cloud() { return cloud; },
+    get user() { return user; },
+    onUser(f) { userListeners.push(f); },
+    onSynced(f) { syncListeners.push(f); },
+    onCloud(f) { if (cloud) f(cloud); else cloudListeners.push(f); },
     open,
   };
 }

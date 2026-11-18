@@ -128,10 +128,43 @@ export async function initCloud({ onUser }) {
       });
     },
 
-    // Deletes the cloud save, its backups and the account. Local progress is untouched.
+    // ---- leaderboard (public): leaderboard/{uid} = { name, allTimeVotes, seats, bestVps, updatedAt } ----
+    async myEntry() {
+      const u = auth.currentUser;
+      if (!u) return null;
+      const snap = await fb.getDoc(fb.doc(db, "leaderboard", u.uid));
+      return snap.exists() ? snap.data() : null;
+    },
+    async setEntry(entry) {
+      const u = auth.currentUser;
+      if (!u) throw new Error("Not signed in");
+      await fb.setDoc(fb.doc(db, "leaderboard", u.uid), {
+        name: entry.name, allTimeVotes: entry.allTimeVotes, seats: Math.floor(entry.seats), bestVps: entry.bestVps,
+        updatedAt: fb.serverTimestamp(),
+      });
+    },
+    async removeEntry() {
+      const u = auth.currentUser;
+      if (u) await fb.deleteDoc(fb.doc(db, "leaderboard", u.uid));
+    },
+    // field: "allTimeVotes" | "seats" | "bestVps"
+    async top(field, n = 50) {
+      const snap = await fb.getDocs(fb.query(fb.collection(db, "leaderboard"), fb.orderBy(field, "desc"), fb.limit(n)));
+      return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    },
+    async rank(field, value) {
+      const q = fb.query(fb.collection(db, "leaderboard"), fb.where(field, ">", value));
+      return (await fb.getCountFromServer(q)).data().count + 1;
+    },
+    async total() {
+      return (await fb.getCountFromServer(fb.collection(db, "leaderboard"))).data().count;
+    },
+
+    // Deletes the cloud save, its backups, the leaderboard entry and the account. Local progress is untouched.
     async deleteAccount() {
       const u = auth.currentUser;
       if (!u) return;
+      await fb.deleteDoc(fb.doc(db, "leaderboard", u.uid)).catch(() => {});
       const all = await fb.getDocs(backupsRef(u.uid));
       await Promise.all(all.docs.map((d) => fb.deleteDoc(d.ref)));
       await fb.deleteDoc(saveRef(u.uid));

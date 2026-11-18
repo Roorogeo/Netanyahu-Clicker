@@ -50,6 +50,15 @@ build a campaign empire on a floating 3D island, and call early elections to win
   keeps its own backups too, made automatically before its progress is replaced or goes down.
 - If the latest save on a device is ever unreadable, the game loads the previous save or the newest backup instead.
 
+## Leaderboard
+
+The **Leaders** tab ranks players on three boards: most votes all time, most Knesset seats and best votes per second.
+Anyone can view it. Signed-in players join by choosing a nickname (3–20 letters, numbers, spaces, `_ . -`); only the
+nickname and scores are published, never an email. Players can change their name or leave at any time, and deleting
+an account removes its entry. Entries update when the account syncs (at most every 5 minutes, or right away when seats
+change). Scores are reported by each player's game, so a determined cheater could fake one; remove an entry in the
+Firebase console under Firestore → `leaderboard`.
+
 ## Accounts & cloud saves: setup
 
 Accounts use [Firebase](https://firebase.google.com/) (the free plan is enough). Until this is set up, the account
@@ -60,6 +69,7 @@ button explains that accounts aren't switched on yet and the game saves on the d
 3. **Authentication → Settings → Authorized domains**: add `roorogeo.github.io`.
 4. **Firestore Database** → Create database (production mode, any location).
 5. Firestore → **Rules**: replace the rules with the contents of [`firestore.rules`](firestore.rules) and click **Publish**.
+   Re-publish them whenever `firestore.rules` changes (the leaderboard needs the current version).
 6. **Project settings** (gear icon) → General → Your apps → add a **Web app** (`</>`). Copy the `apiKey`, `authDomain`,
    `projectId` and `appId` values into [`js/cloud-config.js`](js/cloud-config.js) and push.
 
@@ -87,6 +97,7 @@ python3 -m http.server 8000
 | `css/style.css` | Glass-panel UI, responsive layout |
 | `js/main.js` | Game state, economy, UI, events, save/load |
 | `js/data.js` | All content: buildings, upgrades, ministers, awards, events, headlines |
+| `js/leaderboard.js` | The public leaderboard (Leaders tab) |
 | `js/account.js` | Sign-in screens and syncing between the device and the account |
 | `js/cloud.js` | Firebase login and cloud saves (`js/cloud-config.js` switches it on) |
 | `js/safety.js` | Local save mirror and backups |

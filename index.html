@@ -99,6 +99,7 @@
         <button class="tab active" data-tab="map" role="tab"><img src="assets/icons/branch.png" alt="">Map</button>
         <button class="tab" data-tab="knesset" role="tab"><img src="assets/icons/chair.png" alt="">Knesset</button>
         <button class="tab" data-tab="legacy" role="tab"><img src="assets/icons/crown.png" alt="">Legacy<span class="tab-dot hidden" id="legacy-dot"></span></button>
+        <button class="tab" data-tab="leaders" role="tab"><img src="assets/icons/medal.png" alt="">Leaders</button>
         <button class="tab" data-tab="stats" role="tab"><img src="assets/icons/clock.png" alt="">Stats</button>
         <button class="tab" data-tab="achievements" role="tab"><img src="assets/icons/medal.png" alt="">Awards</button>
         <button class="tab" data-tab="options" role="tab"><img src="assets/icons/briefcase.png" alt="">Options</button>
@@ -150,6 +151,11 @@
           <button id="btn-respec" class="btn">Refund all points (free)</button>
         </div>
         <div class="tree" id="tree"><svg class="tree-lines" id="tree-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+      </div>
+
+      <div class="tab-body hidden" id="tab-leaders">
+        <h2>Leaderboard</h2>
+        <div id="leaders" class="leaders"></div>
       </div>
 
       <div class="tab-body hidden" id="tab-stats">

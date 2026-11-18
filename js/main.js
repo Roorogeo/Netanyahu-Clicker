@@ -6,6 +6,7 @@ import {
 import { THEMES, THEME_BY_ID } from "./themes.js";
 import { writeSave, saveCandidates, listBackups, addBackup } from "./safety.js";
 import { initAccounts } from "./account.js";
+import { initLeaderboard } from "./leaderboard.js";
 import { sfx, setSoundEnabled, unlockAudio } from "./audio.js";
 
 const SAVE_KEY = "bibiClickerSave.v1";
@@ -36,7 +37,7 @@ const freshState = () => ({
 let state = freshState();
 const cache = { vps: 0, baseVps: 0, perBuilding: {}, clickPower: 1, globalMult: 1 };
 const ui = { buyMode: "buy", buyAmount: 1, tab: "map", view: "campaign" };
-let badge = null, map = null, flagBg = null, account = null;
+let badge = null, map = null, flagBg = null, account = null, leaderboard = null;
 
 // ======================================================================
 // Formatting
@@ -1359,6 +1360,7 @@ function setTab(tab) {
   if (tab === "legacy") renderTree();
   if (tab === "achievements") renderAchievements();
   if (tab === "options") renderBackups();
+  if (leaderboard) { if (tab === "leaders") leaderboard.show(); else leaderboard.hide(); }
   syncMapActive();
 }
 function setView(view) {
@@ -1482,6 +1484,10 @@ function init() {
   setInterval(() => { snapshot("Automatic backup", "auto"); if (ui.tab === "options") renderBackups(); }, 15 * 60 * 1000);
   if (recoveredFrom) setTimeout(() => toast("Progress recovered", `Your latest save couldn't be read, so we loaded ${recoveredFrom}.`, "scroll", "gold"), 1500);
   account = initAccounts({ serialize, summary, loadSave, snapshot, toast, showModal, fmtBig, fmtTime, esc });
+  leaderboard = initLeaderboard({
+    account, fmt, fmtBig, esc, toast, img,
+    stats: () => ({ allTimeVotes: state.allTimeVotes || 0, seats: Math.floor(state.seats || 0), bestVps: state.bestVps || 0 }),
+  });
   window.addEventListener("beforeunload", () => save());
   document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 

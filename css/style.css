@@ -317,6 +317,29 @@ kbd { background: var(--surface-solid); border: 1px solid var(--line); border-bo
   .tree { margin: 34px auto 30px; }
 }
 
+/* ---------- leaderboard ---------- */
+.lb-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.lb-boards button { display: inline-flex; align-items: center; gap: 4px; }
+.lb-ico { width: 20px; height: 20px; }
+.lb-title { margin: 12px 0 8px; }
+.lb-me { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 8px; margin-bottom: 10px; }
+.lb-me p { margin: 0; }
+.lb-me-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.lb-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.lb-form label { display: grid; gap: 4px; font-weight: 600; font-size: 0.86rem; flex: 1 1 180px; }
+.lb-form input { font: inherit; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-solid); color: var(--ink); }
+.lb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.lb-row { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 5px 12px 5px 6px; }
+.lb-row.me { border-color: var(--accent); box-shadow: 0 0 0 2px var(--blue-soft); background: var(--surface-solid); }
+.lb-medal { width: 38px; height: 38px; }
+.lb-rank { text-align: center; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lb-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-name em { font-style: normal; font-size: 0.72rem; font-weight: 800; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 1px 7px; margin-left: 4px; vertical-align: 2px; }
+.lb-val { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent); }
+.lb-gap { text-align: center; color: var(--muted); }
+.lb-msg { padding: 14px 4px; margin: 0; }
+.lb-foot { margin-top: 10px; }
+
 /* ---------- stats ---------- */
 .graph-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; }
 .graph-title { font-size: 0.8rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
