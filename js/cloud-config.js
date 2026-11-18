@@ -13,4 +13,9 @@
 //
 // These values are safe to publish: access is controlled by firestore.rules.
 
-export const CLOUD_CONFIG = null;
+export const CLOUD_CONFIG = {
+  apiKey: "AIzaSyDtu9U6my-PkN7at9vcyBpDiSffFSgRqok",
+  authDomain: "netanyahu-clicker.firebaseapp.com",
+  projectId: "netanyahu-clicker",
+  appId: "1:702816168402:web:8d2df16c67a0b3a5ce400b",
+};
